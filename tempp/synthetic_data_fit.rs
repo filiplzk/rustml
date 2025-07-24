@@ -1,5 +1,5 @@
 
-use rand::{rngs::ThreadRng, Rng};
+use rand::rngs::ThreadRng;
 use rustml::*;
 
 

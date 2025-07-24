@@ -1,49 +1,44 @@
-use rustml::core as eng;
+// use rustml::*;
 
-fn main() {
-    let mut rng = rand::thread_rng();
+fn main() { }
+//     let mut rng = rand::rng();
 
-    // parameters
-    let range = 1.0_f32;
-    let n = 20;
-    let iters = 100000;
-    let lr = 1e-3;
-    let log_step = 10;
-    // ----------
+//     // parameters
+//     let batch_size = 2;
+//     let range = 1.0_f32;
+//     let n = 2;
+//     let iters = 10000;
+//     let lr = 1e-2_f32;
+//     let print_step = 10;
+//     // ----------
 
-    let m1 = eng::Matrix::new_uniform(&mut rng, (n, n), -range, range);
+//     let m1 = Tensor::new_uniform(&mut rng, [batch_size, n, n], -range..range);
 
-    let mut tgt = eng::Matrix::fill((n, n), 0.0);
-    for i in 0..n {
-        tgt[(i, i)] = eng::Value::new(1.0);
-    }
+//     let mut tgt = Tensor::fill([batch_size, n, n], 0.0);
+//     for b in 0..batch_size {
+//         for i in 0..n {
+//             tgt[[b, i, i]] = Scalar::new(1.0);
+//         }
+//     }
 
-    let m2 = eng::Matrix::fill(m1.shape, 1.0);
+//     let mut m2 = Tensor::fill([batch_size, n, n], 1.0).with_grad();
 
-    for i in 0..iters {
-        let prod = &m1 * &m2;
-
-        let diff = &prod - &tgt;
-        let loss = diff.hadamard_product(&diff).sum();
-
-        loss.backward();
-        // eng::pretty_print(&loss, 0);
+//     for i in 0..iters {
+//         let prod = m1.mat_mul(&m2);
+//         // let loss = functional::mse(&prod, &tgt);
+//         let loss = Scalar::new(1.0).with_grad();
+//         loss.backward();
         
-        for y in 0..m2.shape.0 {
-            for x in 0..m2.shape.1 {
-                let grad = m2[(y, x)].data().grad;
-                m2[(y, x)].data_mut().val -= grad * lr;
-            }
-        }
+//         for scalar in m2.flat_mut() {
+//             scalar.set(scalar.val() - scalar.grad() * lr);
+//         }
 
-        loss.reset_graph();
+//         loss.backward_reset();
         
-        if i % log_step == 0 {
-            println!("iteration {}: loss={}", i, loss.data().val);   
-        }
-    }
-
-    println!("{}", &m2);
-    println!("{}", &m1 * &m2);
-
-}
+//         if i % print_step == 0 {
+//             println!("iteration {}: loss={}", i, loss.val());   
+//         }
+//     }
+    
+//     println!("{}", &m1.mat_mul(&m2));
+// }

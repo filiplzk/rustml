@@ -1,20 +1,22 @@
-use std::iter::zip;
-
 use crate::*;
 
-pub struct SGD {
-    params: Vec<Value>,
-    grads: Vec<f32>,
-    lr: f32,
-    momentum: f32
+use std::iter::zip;
+
+use num_traits::Float;
+
+pub struct SGD<T: Float> {
+    params: Vec<Scalar<T>>,
+    grads: Vec<T>,
+    lr: T,
+    momentum: T
 }
 
-impl SGD {
-    pub fn new(params: Vec<Value>, lr: f32, momentum: f32) -> Self {
+impl<T: Float> SGD<T> {
+    pub fn new(params: Vec<Scalar<T>>, lr: T, momentum: T) -> Self {
         let param_count = params.len();
         Self {
             params,
-            grads: vec![0.0_f32; param_count],
+            grads: vec![T::zero(); param_count],
             lr,
             momentum
         }
@@ -22,8 +24,8 @@ impl SGD {
 
     pub fn step(&mut self) {
         for (val, g )in zip(&mut self.params, &mut self.grads) {
-            *g = self.momentum * *g - self.lr * val.data().grad;
-            val.data_mut().val += *g;
+            *g = self.momentum * *g - self.lr * val.grad();
+            val.set(val.val() + *g);
         }
     }
 }

@@ -1,27 +1,25 @@
 use crate::*;
 
-pub fn cross_entropy_loss(x: &Matrix, tgt: usize) -> (Value, Matrix) {
-        assert!(x.shape.0 == 1);
+use num_traits::{Num, Float, NumCast};
 
-        let mut max_logit = Value::new(f32::NEG_INFINITY);
-        for c in 0..x.shape.1 {
-            let val = x[(0, c)].clone();
+pub fn softmax<T: Float + std::fmt::Display>(tensor: &Tensor<T>) -> Tensor<T> {
+    let rdim = tensor.shape[tensor.dim() - 1];
+    let shifted= tensor - tensor.max([tensor.dim()-1]).right_broadcast([rdim]);
+    
+    let exp = shifted.exp();
+    let exp_sum = exp.sum([shifted.dim()-1]).right_broadcast([rdim]);
 
-            if val.data().val > max_logit.data().val {
-                max_logit = val;
-            }
-        }
-        
-        let x_shifted = x + Matrix::fill_value(x.shape, &-max_logit);
-        let log_sum_exp = x_shifted.exp_each().sum().log();
-
-        let log_probs = x_shifted - Matrix::fill_value(x.shape, &log_sum_exp);
-
-        let nll = -log_probs[(0, tgt)].clone();
-        (nll, log_probs.exp_each())
+    exp / exp_sum
 }
 
-pub fn mse(x: &Matrix, y: &Matrix) -> Value {
+pub fn cross_entropy_loss<T: Float>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Tensor<T> {
+    assert!(pred.dim() >= 2, "cross_entropy_loss(): Expected a Tensor of dim >=2");
+    assert!(pred.shape == tgt.shape, "cross_entropy_loss(): Got Tensors with different shapes");
+
+    (-pred.log() * tgt).sum([pred.dim()-1])
+}
+
+pub fn mse<T: Num + Copy + NumCast>(x: &Tensor<T>, y: &Tensor<T>) -> Scalar<T> {
     let diff = x - y;
-    diff.hadamard_product(&diff).average()
+    (&diff * &diff).sum_all() / Scalar::new(T::from(diff.size()).unwrap())
 }

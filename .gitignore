@@ -1,4 +1,6 @@
 /target
 Cargo.lock
-examples/local/
+local_scripts/
+examples/_*
 *.csv
+TODO.txt
