@@ -39,7 +39,6 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
                 for c in 0..c2 {
                     let mut tot = T::zero();
                     for i in 0..c1 {
-                        println!("{}, {}, {}, {}", batch, r, c, i);
                         let v1 = self.flat()[b_1_off + r * c1 + i];
                         let v2 = rhs.flat()[b_2_off + i * c2 + c];
                         tot += v1 * v2;
