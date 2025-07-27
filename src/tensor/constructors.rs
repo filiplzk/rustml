@@ -15,8 +15,6 @@ impl<T: Num + Copy> Tensor<T> {
             grad_enabled: false,
             grad: vec![T::zero(); len],
             children: Children::None,
-            matrix_count: 0,
-            matrix_stride: 0
         };
         let inner = Rc::new(RefCell::new(tensor));
 
@@ -33,8 +31,6 @@ impl<T: Num + Copy> Tensor<T> {
             grad_enabled: grad_criterion,
             grad: vec![T::zero(); len],
             children: if grad_criterion { maybe_children } else { Children::None },
-            matrix_count: 0,
-            matrix_stride: 0
         };
         let inner = Rc::new(RefCell::new(tensor));
 
