@@ -191,7 +191,7 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(grad);
                 }
                 if t2.grad_enabled() {
-                    let grad = cur_grad.matmul(&t1.transpose(t1.dim()-2, t1.dim()-1));
+                    let grad = t1.transpose(t1.dim()-2, t1.dim()-1).matmul(cur_grad);
                     tensors.push(t2);
                     grads.push(grad);
                 }
