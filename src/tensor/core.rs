@@ -107,6 +107,12 @@ impl<T: Num + Copy> Tensor<T> {
     pub fn set(&self, t: Tensor<T>) {
         *self.flat_mut() = t.flat().clone();
     }
+
+    pub fn item(&self) -> T {
+        assert!(self.size() == 1, "item() works only for tensors with 1 element");
+
+        self.flat()[0]
+    }
 }
 
 

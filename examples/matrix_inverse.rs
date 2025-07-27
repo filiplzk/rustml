@@ -1,15 +1,17 @@
+use std::time::Instant;
 use rustml::*;
 
 fn main() {
+    let start: Instant = Instant::now();
     let mut rng = rand::rng();
 
     // parameters
     let batch_size = 1;
-    let range = 1.0_f32;
+    let range: f32 = 1.0;
     let n = 32;
-    let iters = 10000;
-    let lr = 1e-2_f32;
-    let print_step = 10;
+    let iters = 50000;
+    let lr: f32 = 1e0;
+    let print_step = 1000;
     // ----------
 
     let m1 = Tensor::new_uniform(&mut rng, [batch_size, n, n], -range..range);
@@ -41,4 +43,11 @@ fn main() {
     }
     
     println!("{}", &m1.mat_mul(&m2));
+
+    let elapsed_time_s = start.elapsed().as_millis() as f32 / 1000.0;
+    let op_count = batch_size * iters * n * n * n;
+    let op_count_per_sec = op_count as f32 / elapsed_time_s;
+    println!("Execution time: {:.2}s", elapsed_time_s);
+    println!("Estimated number of arithmetic operations: {:.2e}", op_count);
+    println!("Estimated FLOPS: {:.2e}", op_count_per_sec);
 }
