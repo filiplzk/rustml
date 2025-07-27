@@ -2,6 +2,8 @@ use std::{cell::Ref};
 use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 
+use crate::tensor;
+
 use super::*;
 
 use num_traits::{Float, Num, NumAssign};
@@ -144,5 +146,19 @@ impl<T: Float> Tensor<T> {
             .collect();
         let children = Children::Log(self.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
+    }
+
+    pub fn pow(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| x.powf(y))
+            .collect();
+        let children = Children::Pow(self.clone(), rhs.clone());
+        Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
+    }
+
+    pub fn sqrt(&self) -> Tensor<T> {
+        self.pow(&Tensor::fill_like(self, T::from(0.5).unwrap()))
     }
 }

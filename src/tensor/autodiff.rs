@@ -15,7 +15,8 @@ pub(super) enum Children<T: Num + Copy> {
     Mul(Tensor<T>, Tensor<T>),
     Div(Tensor<T>, Tensor<T>),
     Min(Tensor<T>, Tensor<T>),
-    Max(Tensor<T>, Tensor<T>)
+    Max(Tensor<T>, Tensor<T>),
+    Pow(Tensor<T>, Tensor<T>),
 }
 
 impl<T: Float + fmt::Display> Children<T> {
@@ -37,7 +38,8 @@ impl<T: Float + fmt::Display> Children<T> {
             Children::Mul(x, y) |
             Children::Div(x, y) |
             Children::Min(x, y) |
-            Children::Max(x, y) => {
+            Children::Max(x, y) |
+            Children::Pow(x, y) => {
                 vec![x.clone(), y.clone()]
             }
         }
@@ -154,6 +156,28 @@ impl<T: Float + fmt::Display> Children<T> {
                             .iter()
                             .zip(t1.grad().iter())
                             .map(|(&y, &x)| if y < x { T::one() } else { T::zero() })
+                            .collect::<Vec<T>>()
+                    ));
+                }
+            }
+            Children::Pow(t1, t2) => {
+                if t1.grad_enabled() {
+                    tensors.push(t1);
+                    grads.push(Tensor::from_flat_like(t1, 
+                    t1.flat()
+                            .iter()
+                            .zip(t2.grad().iter())
+                            .map(|(&x, &y)| y * x.powf(y - T::one()) ) // TODO
+                            .collect::<Vec<T>>()
+                    ));
+                }
+                if t2.grad_enabled() {
+                    tensors.push(t2);
+                    grads.push(Tensor::from_flat_like(t2, 
+                    t2.flat()
+                            .iter()
+                            .zip(t1.grad().iter())
+                            .map(|(&y, &x)| x.powf(y) * x.ln() )
                             .collect::<Vec<T>>()
                     ));
                 }
