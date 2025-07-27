@@ -49,18 +49,16 @@ impl<T: Num + Copy> Tensor<T> {
         out
     }
 
-    // pub fn left_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
-    //     let shape = shape.as_ref().to_vec();
-    //     let new_shape = [&shape[..], &self.shape[..]].concat();
-    //     let repeat_count = shape.iter().product();
+    pub fn left_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
+        let mut shape_rev = shape.as_ref().to_vec();
+        shape_rev.reverse();
 
-    //     let mut data = Vec::with_capacity(repeat_count * self.size());
-    //     for _ in 0..repeat_count {
-    //         data.extend_from_slice(&self.data);
-    //     }
-
-    //     Self::from_shape_data(new_shape, data)
-    // }
+        let mut out = self.clone();
+        for cnt in shape_rev {
+            out = out.stack_new_dim(0, cnt);
+        }
+        out
+    }
 
     // pub fn right_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
     //     let shape = shape.as_ref().to_vec();

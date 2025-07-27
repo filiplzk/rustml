@@ -9,10 +9,10 @@ fn main() {
     let mut rng = rand::rng();
 
     // parameters
-    let batch_size = 1;
+    let batch_size = 4;
     let range: FT = 1.0;
-    let n = 32;
-    let iters = 5000;
+    let n = 8;
+    let iters = 250000;
     let lr: FT = 1e0;
     let print_step = 1000;
     // ----------
