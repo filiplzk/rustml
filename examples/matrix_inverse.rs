@@ -1,48 +1,49 @@
 use std::time::Instant;
 use rustml::*;
 
+type FT = f32;
+
+
 fn main() {
     let start: Instant = Instant::now();
     let mut rng = rand::rng();
 
     // parameters
     let batch_size = 1;
-    let range: f32 = 1.0;
+    let range: FT = 1.0;
     let n = 32;
-    let iters = 50000;
-    let lr: f32 = 1e0;
+    let iters = 5000;
+    let lr: FT = 1e0;
     let print_step = 1000;
     // ----------
 
-    let m1 = Tensor::new_uniform(&mut rng, [batch_size, n, n], -range..range);
+    let tensor = &Tensor::<FT>::new_uniform(&mut rng, [batch_size, n, n], -range..range);
 
-    let mut tgt = Tensor::fill([batch_size, n, n], 0.0);
+    let tgt = &Tensor::<FT>::fill([batch_size, n, n], 0.0);
     for b in 0..batch_size {
         for i in 0..n {
-            tgt[[b, i, i]] = Scalar::new(1.0);
+            *tgt.get_mut([b, i, i]) = 1.0;
         }
     }
 
-    let mut m2 = Tensor::fill([batch_size, n, n], 1.0).with_grad();
+    let inverse = &Tensor::<FT>::fill([batch_size, n, n], 1.0).with_grad();
+    let mut loss_sum: FT = 0.0;
+    for i in 1..=iters {
+        let prod = &tensor.matmul(inverse);
+        let loss = &functional::mse(prod, tgt);
 
-    for i in 0..iters {
-        let prod = m1.mat_mul(&m2);
-        let loss = functional::mse(&prod, &tgt);
-
-        let topo = loss.backward();
+        loss.backward();
+        inverse.set(inverse - inverse.grad_tensor() * Tensor::fill_like(inverse, lr));
+        loss.zero_grad();
         
-        for scalar in m2.flat_mut() {
-            scalar.set(scalar.val() - scalar.grad() * lr);
-        }
-
-        loss.backward_reset(topo);
-        
+        loss_sum += loss.item();
         if i % print_step == 0 {
-            println!("iteration {}: loss={}", i, loss.val());   
+            println!("iterations ({}-{})/{}  ->  avg_loss={}", i-print_step+1, i, iters, loss_sum / print_step as FT);   
+            loss_sum = 0.0;
         }
     }
-    
-    println!("{}", &m1.mat_mul(&m2));
+
+    println!("{}", &tensor.matmul(inverse));
 
     let elapsed_time_s = start.elapsed().as_millis() as f32 / 1000.0;
     let op_count = batch_size * iters * n * n * n;
