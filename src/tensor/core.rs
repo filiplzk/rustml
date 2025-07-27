@@ -90,6 +90,16 @@ impl<T: Num + Copy> Tensor<T> {
         .sum()
     }
 
+    pub fn get_ndidx(&self, idx: usize) -> Vec<usize> {
+        let mut out = vec![0; self.dim()];
+        for i in 0..self.dim() {
+            let d = self.shape()[i];
+            let s = self.handle().stride[i];
+            out[i] = (idx / s) % d;
+        }
+        out
+    }
+
     pub fn get<S: AsRef<[usize]>>(&self, idx: S) -> T {
         let flat_idx = self.offset(idx.as_ref().to_vec());
         self.flat()[flat_idx]

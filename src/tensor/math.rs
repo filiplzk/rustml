@@ -6,13 +6,55 @@ use crate::tensor;
 
 use super::*;
 
-use num_traits::{Float, Num, NumAssign};
+use num_traits::{Float, Num, NumAssign, NumAssignOps};
 
 impl<T: Num + Copy> Tensor<T> {
     pub fn duplicate(&self) -> Tensor<T> {
         let data = self.flat().clone();
         let children = Children::Id(self.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
+    }
+}
+
+impl<T: Num + Copy + NumAssignOps> Tensor<T> {
+    pub fn matmul(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
+        
+        let b = &self.shape()[..self.dim()-2];
+        let b_rhs = &rhs.shape()[..self.dim()-2];
+        assert!(b == b_rhs, "Matmul requires the same batch dimentions");
+        
+        let batch_cnt = b.iter().product();
+        let (r1, c1) = (self.shape()[self.dim()-2], self.shape()[self.dim()-1]);
+        let (r2, c2) = (rhs.shape()[rhs.dim()-2], rhs.shape()[rhs.dim()-1]);
+        assert!(c1 == r2, "Matmul: matrix shapes do not match");
+
+        let out_shape = [b, &[r1], &[c2]].concat();
+        let out = Tensor::zeros(out_shape);
+        for batch in 0..batch_cnt {
+            let b_1_off = batch * r1 * c1;
+            let b_2_off = batch * r2 * c2;
+            let b_out_off = batch * r1 * c2;
+            for r in 0..r1 {
+                for c in 0..c2 {
+                    let mut tot = T::zero();
+                    for i in 0..c1 {
+                        println!("{}, {}, {}, {}", batch, r, c, i);
+                        let v1 = self.flat()[b_1_off + r * c1 + i];
+                        let v2 = rhs.flat()[b_2_off + i * c2 + c];
+                        tot += v1 * v2;
+                    }
+                    out.flat_mut()[b_out_off + r * c2 + c] = tot;
+                }
+            }
+        }
+
+        if self.grad_enabled() || rhs.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::Matmul(self.clone(), rhs.clone());
+        }
+        out
     }
 }
 

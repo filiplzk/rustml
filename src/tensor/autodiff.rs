@@ -1,6 +1,6 @@
 use std::{cell::{Ref, RefCell, RefMut}, collections::HashSet, fmt, rc::Rc, time::Instant};
 use super::*;
-use num_traits::{Float, Num, NumAssign};
+use num_traits::{Float, Num, NumAssign, NumAssignOps};
 
 pub(super) enum Children<T: Num + Copy> {
     None,
@@ -17,9 +17,10 @@ pub(super) enum Children<T: Num + Copy> {
     Min(Tensor<T>, Tensor<T>),
     Max(Tensor<T>, Tensor<T>),
     Pow(Tensor<T>, Tensor<T>),
+    Matmul(Tensor<T>, Tensor<T>),
 }
 
-impl<T: Float + fmt::Display> Children<T> {
+impl<T: Float + NumAssignOps> Children<T> {
     fn children_vec(&self) -> Vec<Tensor<T>> {
         match &self {
             Children::None => {
@@ -39,7 +40,8 @@ impl<T: Float + fmt::Display> Children<T> {
             Children::Div(x, y) |
             Children::Min(x, y) |
             Children::Max(x, y) |
-            Children::Pow(x, y) => {
+            Children::Pow(x, y) |
+            Children::Matmul(x, y) => {
                 vec![x.clone(), y.clone()]
             }
         }
@@ -54,66 +56,66 @@ impl<T: Float + fmt::Display> Children<T> {
             Children::Id(t) => {
                 if t.grad_enabled() {
                     tensors.push(t);
-                    grads.push(Tensor::ones_like(t))
+                    grads.push(Tensor::ones_like(t) * cur_grad)
                 }
             }
             Children::Neg(t) => {
                 if t.grad_enabled() {
                     tensors.push(t);
-                    grads.push(-Tensor::ones_like(t))
+                    grads.push(-Tensor::ones_like(t) * cur_grad)
                 }
             }
             Children::Exp(t) => {
                 if t.grad_enabled() {
                     tensors.push(t);
-                    grads.push(t.exp());
+                    grads.push(t.exp() * cur_grad);
                 }
             }
             Children::Log(t) => {
                 if t.grad_enabled() {
                     tensors.push(t);
-                    grads.push(Tensor::ones_like(t) / t);
+                    grads.push(Tensor::ones_like(t) / t * cur_grad);
                 }
             }
             
             Children::Add(t1, t2) => {
                 if t1.grad_enabled() {
                     tensors.push(t1);
-                    grads.push(Tensor::ones_like(t1));
+                    grads.push(Tensor::ones_like(t1) * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
-                    grads.push(Tensor::ones_like(t2));
+                    grads.push(Tensor::ones_like(t2) * cur_grad);
                 }
             }
             Children::Sub(t1, t2) => {
                 if t1.grad_enabled() {
                     tensors.push(t1);
-                    grads.push(Tensor::ones_like(t1));
+                    grads.push(Tensor::ones_like(t1) * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
-                    grads.push(-Tensor::ones_like(t2));
+                    grads.push(-Tensor::ones_like(t2) * cur_grad);
                 }
             }
             Children::Mul(t1, t2) => {
                 if t1.grad_enabled() {
                     tensors.push(t1);
-                    grads.push(t2.clone());
+                    grads.push(t2.clone() * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
-                    grads.push(t1.clone());
+                    grads.push(t1.clone() * cur_grad);
                 }
             }
             Children::Div(t1, t2) => {
                 if t1.grad_enabled() {
                     tensors.push(t1);
-                    grads.push(Tensor::ones_like(t2) / t2);
+                    grads.push(Tensor::ones_like(t2) / t2 * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
-                    grads.push(-t1 / (t2 * t2));
+                    grads.push(-t1 / (t2 * t2) * cur_grad);
                 }
             }
             Children::Min(t1, t2) => {
@@ -125,7 +127,7 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t2.grad().iter())
                             .map(|(&x, &y)| if x > y { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
@@ -135,7 +137,7 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t1.grad().iter())
                             .map(|(&y, &x)| if y > x { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
                 }
             }
             Children::Max(t1, t2) => {
@@ -147,7 +149,7 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t2.grad().iter())
                             .map(|(&x, &y)| if x < y { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
@@ -157,7 +159,7 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t1.grad().iter())
                             .map(|(&y, &x)| if y < x { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
                 }
             }
             Children::Pow(t1, t2) => {
@@ -169,7 +171,7 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t2.grad().iter())
                             .map(|(&x, &y)| y * x.powf(y - T::one()) ) // TODO
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
                 }
                 if t2.grad_enabled() {
                     tensors.push(t2);
@@ -179,19 +181,31 @@ impl<T: Float + fmt::Display> Children<T> {
                             .zip(t1.grad().iter())
                             .map(|(&y, &x)| x.powf(y) * x.ln() )
                             .collect::<Vec<T>>()
-                    ));
+                    ) * cur_grad);
+                }
+            }
+            Children::Matmul(t1, t2) => {
+                if t1.grad_enabled() {
+                    let grad = cur_grad.matmul(&t2.transpose(t2.dim()-2, t2.dim()-1));
+                    tensors.push(t1);
+                    grads.push(grad);
+                }
+                if t2.grad_enabled() {
+                    let grad = cur_grad.matmul(&t1.transpose(t1.dim()-2, t1.dim()-1));
+                    tensors.push(t2);
+                    grads.push(grad);
                 }
             }
         }
 
         for (&t, g) in tensors.iter().zip(grads.iter()) {
-            *t.grad_mut() = (t.grad_tensor() + g * cur_grad).flat().clone();
+            *t.grad_mut() = (t.grad_tensor() + g).flat().clone();
         }
 
     }
 }
 
-impl<T: Float + fmt::Display> Tensor<T> {
+impl<T: Float + NumAssignOps> Tensor<T> {
     fn rev_toposort(&self, vec: &mut Vec<Tensor<T>>, seen: &mut HashSet<usize>) {
         seen.insert(self.id());
         
