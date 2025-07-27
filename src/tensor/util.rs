@@ -1,8 +1,6 @@
-use super::*;
-
 use std::fmt;
-
-use num_traits::{Float, Num, NumAssign};
+use super::*;
+use num_traits::Num;
 
 pub fn make_string<T: Num + Copy + fmt::Display>(tensor: &Tensor<T>, idx: &mut Vec<usize>, layer: usize, val: bool) -> String {
     let next_dim_size = tensor.shape()[idx.len()];

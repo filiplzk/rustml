@@ -1,24 +1,39 @@
-use std::{cell::Ref, ops::{Index, IndexMut}};
-
-use crate::tensor;
-
 use super::*;
-
-use num_traits::{Float, Num, NumAssign};
+use num_traits::Num;
 
 // TODO add gradient flow
 impl<T: Num + Copy> Tensor<T> {
-    // pub fn squeeze(&self) -> Self {
-    //     let mut out = self.clone();
-    //     out.shape.retain(|&x| x != 1);
-    //     out.init()
-    // }
+    pub fn stack_new_dim(&self, dim: usize, count: usize) -> Tensor<T> {
+        let mut new_shape = self.shape().clone();
+        new_shape.insert(dim, count);
+    
+        let out = Tensor::zeros(new_shape);
+        for idx in 0..self.size() {
+            let val = self.flat()[idx];
+            let mut ndidx = self.get_ndidx(idx);
+            ndidx.insert(dim, 0);
+            for j in 0..count {
+                ndidx[dim] = j;
+                *out.get_mut(&ndidx) = val;
+            }
+        }
+        out
+    }
 
-    // pub fn unsqueeze(&self, dim: usize) -> Self {
-    //     let mut out = self.clone();
-    //     out.shape.insert(dim, 1);
-    //     out.init()
-    // }
+    pub fn squeeze(&self) -> Self {
+        let out = self.clone();
+        out.handle_mut().shape.retain(|&x| x != 1);
+        if out.handle().shape.is_empty() {
+            out.handle_mut().shape = vec![1];
+        }
+        out.init()
+    }
+
+    pub fn unsqueeze(&self, dim: usize) -> Self {
+        let out = self.clone();
+        out.handle_mut().shape.insert(dim, 1);
+        out.init()
+    }
 
     pub fn transpose(&self, dim1: usize, dim2: usize) -> Self {
         let mut new_shape = self.shape().clone();

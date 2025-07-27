@@ -1,6 +1,6 @@
-use std::{cell::{Ref, RefCell, RefMut}, collections::HashSet, fmt, rc::Rc, time::Instant};
+use std::collections::HashSet;
 use super::*;
-use num_traits::{Float, Num, NumAssign, NumAssignOps};
+use num_traits::{Float, Num, NumAssignOps};
 
 pub(super) enum Children<T: Num + Copy> {
     None,
@@ -9,6 +9,7 @@ pub(super) enum Children<T: Num + Copy> {
     Neg(Tensor<T>),
     Exp(Tensor<T>),
     Log(Tensor<T>),
+    DimSum(Tensor<T>, usize),
     
     Add(Tensor<T>, Tensor<T>),
     Sub(Tensor<T>, Tensor<T>),
@@ -30,7 +31,8 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Id(x) |
             Children::Neg(x) |
             Children::Exp(x) |
-            Children::Log(x) => {
+            Children::Log(x) |
+            Children::DimSum(x, _) => {
                 vec![x.clone()]
             }
 
@@ -77,7 +79,13 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(Tensor::ones_like(t) / t * cur_grad);
                 }
             }
-            
+            Children::DimSum(t, dim) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    grads.push(cur_grad.stack_new_dim(*dim, t.shape()[*dim]))
+                }
+            }
+
             Children::Add(t1, t2) => {
                 if t1.grad_enabled() {
                     tensors.push(t1);

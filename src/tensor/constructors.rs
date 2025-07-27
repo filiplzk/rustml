@@ -1,9 +1,7 @@
 use std::{cell::RefCell, f32::consts::PI, rc::Rc};
-
 use super::*;
-
-use num_traits::{Float, Num, NumAssign};
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
+use num_traits::{Float, Num};
 
 
 impl<T: Num + Copy> Tensor<T> {

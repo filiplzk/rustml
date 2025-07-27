@@ -1,12 +1,7 @@
-use std::{cell::Ref};
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-
-
-use crate::tensor;
-
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 use super::*;
+use num_traits::{Float, Num, NumAssignOps};
 
-use num_traits::{Float, Num, NumAssign, NumAssignOps};
 
 impl<T: Num + Copy> Tensor<T> {
     pub fn duplicate(&self) -> Tensor<T> {
@@ -41,7 +36,7 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
                     for i in 0..c1 {
                         let v1 = self.flat()[b_1_off + r * c1 + i];
                         let v2 = rhs.flat()[b_2_off + i * c2 + c];
-                        tot += v1 * v2;
+                        tot = tot + v1 * v2;
                     }
                     out.flat_mut()[b_out_off + r * c2 + c] = tot;
                 }
@@ -54,6 +49,45 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
             out.handle_mut().children = Children::Matmul(self.clone(), rhs.clone());
         }
         out
+    }
+
+    fn sum_1dim(&self, dim: usize) -> Tensor<T> {
+        let mut new_shape = self.shape().clone();
+        new_shape.remove(dim);
+    
+        let out = Tensor::<T>::zeros(new_shape);
+    
+        for idx in 0..self.size() {
+            let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
+            let dim_idx = idx % self.handle().stride[dim];
+            
+            // index math magic
+            let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
+            out.flat_mut()[out_idx] += self.flat()[idx];
+        }
+
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::DimSum(self.clone(), dim);
+        }
+        out
+    }
+
+    pub fn sum<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
+        let mut dims = dims.as_ref().to_vec();
+        dims.reverse();
+
+        let mut out = self.clone();
+        for dim in dims {
+            out = out.sum_1dim(dim);
+        }
+        out
+    }
+
+    pub fn sum_all(&self) -> Tensor<T> {
+        let dims: Vec<usize> = (1..=self.dim()).collect();
+        self.unsqueeze(0).sum(dims).squeeze()
     }
 }
 

@@ -1,10 +1,7 @@
 use std::{cell::{Ref, RefCell, RefMut}, rc::Rc};
-
-use crate::tensor;
-
 use super::*;
-
 use num_traits::{Num, Float};
+
 
 #[derive(Clone)]
 pub struct Tensor<T: Num + Copy> {
@@ -20,9 +17,6 @@ pub struct TensorCore<T: Num + Copy> {
     pub(super) grad_enabled: bool,
     pub(super) grad: Vec<T>,
     pub(super) children: Children<T>,
-
-    pub(super) matrix_count: usize,
-    pub(super) matrix_stride: usize,
 }
 
 impl<T: Num + Copy> Tensor<T> {
