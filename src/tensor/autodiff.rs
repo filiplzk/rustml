@@ -236,7 +236,7 @@ impl<T: Float + NumAssignOps> Tensor<T> {
     }
 
     pub fn backward(&self) {
-        // assert!(self.size() == 1, "Can't backpropagate on a tensor holding more than 1 value");
+        assert!(self.size() == 1, "Can't backpropagate on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't backpropagate on a tensor with disabled gradients");
 
         self.handle_mut().grad = vec![T::one(); self.size()];
@@ -247,7 +247,7 @@ impl<T: Float + NumAssignOps> Tensor<T> {
     }
 
     pub fn zero_grad(&self) {
-        // assert!(self.size() == 1, "Can't reset on a tensor holding more than 1 value");
+        assert!(self.size() == 1, "Can't reset on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't reset on a tensor with disabled gradients");
 
         for t in self.toposort() {

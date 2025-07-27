@@ -1,22 +1,24 @@
 use crate::*;
-use num_traits::{Num, NumAssignOps, NumCast};
+use num_traits::{Float, Num, NumAssignOps, NumCast};
 
-// pub fn softmax<T: Float + std::fmt::Display>(tensor: &Tensor<T>) -> Tensor<T> {
-//     let rdim = tensor.shape[tensor.dim() - 1];
-//     let shifted= tensor - tensor.max([tensor.dim()-1]).right_broadcast([rdim]);
+pub fn softmax<T: Float + NumAssignOps>(tensor: &Tensor<T>) -> Tensor<T> {
+    let rdim = tensor.shape()[tensor.dim() - 1];
     
-//     let exp = shifted.exp();
-//     let exp_sum = exp.sum([shifted.dim()-1]).right_broadcast([rdim]);
+    // let shifted= tensor - tensor.max([tensor.dim()-1]).right_broadcast([rdim]);
+    let shifted = tensor;  // TODO add shifting for numerical stability
 
-//     exp / exp_sum
-// }
+    let exp = shifted.exp();
+    let exp_sum = exp.sum([shifted.dim()-1]).right_broadcast([rdim]);
 
-// pub fn cross_entropy_loss<T: Float>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Tensor<T> {
-//     assert!(pred.dim() >= 2, "cross_entropy_loss(): Expected a Tensor of dim >=2");
-//     assert!(pred.shape == tgt.shape, "cross_entropy_loss(): Got Tensors with different shapes");
+    exp / exp_sum
+}
 
-//     (-pred.log() * tgt).sum([pred.dim()-1])
-// }
+pub fn cross_entropy_loss<T: Float + NumAssignOps>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Tensor<T> {
+    assert!(pred.dim() >= 2, "cross_entropy_loss(): Expected a Tensor of dim >=2");
+    assert!(*pred.shape() == *tgt.shape(), "cross_entropy_loss(): Got Tensors with different shapes");
+
+    (-pred.log() * tgt).sum([pred.dim()-1])
+}
 
 pub fn mse<T: Num + Copy + NumAssignOps + NumCast>(x: &Tensor<T>, y: &Tensor<T>) -> Tensor<T> {
     let diff = &(x - y);

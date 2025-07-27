@@ -1,31 +1,33 @@
-// use crate::*;
+use std::iter::zip;
+use crate::*;
+use num_traits::Float;
 
-// use std::iter::zip;
 
-// use num_traits::Float;
+pub struct SGD<T: Float> {
+    params: Vec<Tensor<T>>,
+    grads: Vec<Tensor<T>>,
+    lr: T,
+    momentum: T
+}
 
-// pub struct SGD<T: Float> {
-//     params: Vec<Scalar<T>>,
-//     grads: Vec<T>,
-//     lr: T,
-//     momentum: T
-// }
+impl<T: Float> SGD<T> {
+    pub fn new(params: Vec<Tensor<T>>, lr: T, momentum: T) -> Self {
+        let grads: Vec<Tensor<T>> = params.iter()
+            .map(|t| Tensor::zeros_like(t))
+            .collect();
 
-// impl<T: Float> SGD<T> {
-//     pub fn new(params: Vec<Scalar<T>>, lr: T, momentum: T) -> Self {
-//         let param_count = params.len();
-//         Self {
-//             params,
-//             grads: vec![T::zero(); param_count],
-//             lr,
-//             momentum
-//         }
-//     }
+        Self {
+            params,
+            grads,
+            lr,
+            momentum
+        }
+    }
 
-//     pub fn step(&mut self) {
-//         for (val, g )in zip(&mut self.params, &mut self.grads) {
-//             *g = self.momentum * *g - self.lr * val.grad();
-//             val.set(val.val() + *g);
-//         }
-//     }
-// }
+    pub fn step(&mut self) {
+        for (t, g ) in zip(&self.params, &mut self.grads) {
+            *g = Tensor::fill_like(t, self.momentum) * &*g + Tensor::fill_like(t, self.lr) * t.grad_tensor();
+            t.set(t - &*g);
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use super::*;
-use num_traits::Num;
+use num_traits::{Num, NumCast};
 
 // TODO add gradient flow
 impl<T: Num + Copy> Tensor<T> {
@@ -60,18 +60,42 @@ impl<T: Num + Copy> Tensor<T> {
         out
     }
 
-    // pub fn right_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
-    //     let shape = shape.as_ref().to_vec();
-    //     let new_shape = [&self.shape[..], &shape[..]].concat();
-    //     let repeat_count = shape.iter().product();
+    pub fn right_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
+        let shape = shape.as_ref().to_vec();
 
-    //     let mut data = Vec::with_capacity(repeat_count * self.size());
-    //     for scalar in &self.data {
-    //         for _ in 0..repeat_count {
-    //             data.push(scalar.clone());
-    //         }
-    //     }
+        let mut out = self.clone();
+        for cnt in shape {
+            out = out.stack_new_dim(out.dim(), cnt);
+        }
+        out
+    }
+}
 
-    //     Self::from_shape_data(new_shape, data)
-    // }
+
+impl<T: Num + Copy + NumCast> Tensor<T> {
+    pub fn cast<U: Num + Copy + NumCast>(&self) -> Tensor<U> {
+        let data = self.flat()
+            .iter()
+            .map(|&x| U::from(x).unwrap())
+            .collect();
+        
+        Tensor::from_shape_data(self.shape().clone(), data)
+    }
+}
+
+
+impl Tensor<usize> {
+    pub fn one_hot(&self, dim_size: usize) -> Tensor<usize> {
+        let mut new_shape = self.shape().clone();
+        new_shape.push(dim_size);
+
+        let out = Tensor::zeros(new_shape);
+        for idx in 0..self.size() {
+            let val = self.flat()[idx];
+            let mut ndidx = self.get_ndidx(idx);
+            ndidx.push(val);
+            *out.get_mut(ndidx) = 1;
+        }
+        out
+    }
 }

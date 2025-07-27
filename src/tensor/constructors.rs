@@ -37,6 +37,11 @@ impl<T: Num + Copy> Tensor<T> {
         Self { inner }.init()
     }
 
+
+    pub fn null() -> Self {
+        Self::from_shape_data(vec![], vec![])
+    }
+
     pub fn from_flat<S: AsRef<[usize]>, V: AsRef<[T]>>(shape: S, vals: V) -> Self {
         let shape = shape.as_ref().to_vec();
         let vals = vals.as_ref().to_vec();
@@ -62,20 +67,20 @@ impl<T: Num + Copy> Tensor<T> {
         Self::fill(shape, T::one())
     }
 
-    pub fn fill_like(t: &Tensor<T>, val: T) -> Self {
+    pub fn fill_like<U: Num + Copy>(t: &Tensor<U>, val: T) -> Self {
         let data = vec![val; t.size()];
         Self::from_shape_data(t.shape().clone(), data)
     }
 
-    pub fn zeros_like(t: &Tensor<T>) -> Self {
+    pub fn zeros_like<U: Num + Copy>(t: &Tensor<U>) -> Self {
         Self::zeros(t.shape().clone())
     }
 
-    pub fn ones_like(t: &Tensor<T>) -> Self {
+    pub fn ones_like<U: Num + Copy>(t: &Tensor<U>) -> Self {
         Self::ones(t.shape().clone())
     }
 
-    pub fn from_flat_like<V: AsRef<[T]>>(t: &Tensor<T>, vals: V) -> Self {
+    pub fn from_flat_like<U: Num + Copy, V: AsRef<[T]>>(t: &Tensor<U>, vals: V) -> Self {
         Self::from_flat(t.shape().clone(), vals)
     }
 }

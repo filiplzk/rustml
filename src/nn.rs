@@ -1,6 +1,6 @@
 use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
-use num_traits::{Float, NumAssignOps};
+use num_traits::{Float, Num, NumAssignOps};
 
 
 pub trait Module<T: Float> {
@@ -85,6 +85,43 @@ where
 }
 
 
+pub struct Sequential<T: Float> {
+    pub layers: Vec<Box<dyn Module<T>>>
+}
+
+impl<T: Float> Module<T> for Sequential<T> {
+    fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
+        let mut out = x.clone();
+        for layer in &self.layers {
+            out = layer.forward(&out);
+        };
+
+        out
+    }
+
+    fn params(&self) -> Vec<Tensor<T>> {
+        let mut data = Vec::new();
+        for layer in &self.layers {
+            for param in layer.params() {
+                data.push(param);
+            }
+        };
+
+        data
+    }
+}
+
+impl<T: Float> Sequential<T> {
+    pub fn new() -> Self {
+        Self { layers: vec![] }
+    }
+
+    pub fn add<M: Module<T> + 'static>(&mut self, layer: M) {
+        self.layers.push(Box::new(layer));
+    }
+}
+
+
 pub struct Tanh;
 impl Tanh { pub fn new() -> Self { Tanh } }
 
@@ -117,39 +154,15 @@ impl<T: Float> Module<T> for ReLU {
     }
 }
 
-pub struct Sequential<T: Float> {
-    pub layers: Vec<Box<dyn Module<T>>>
-}
+pub struct Softmax;
+impl Softmax { pub fn new() -> Self { Softmax } }
 
-
-impl<T: Float> Module<T> for Sequential<T> {
+impl<T: Float + NumAssignOps> Module<T> for Softmax {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
-        let mut out = x.clone();
-        for layer in &self.layers {
-            out = layer.forward(&out);
-        };
-
-        out
+        functional::softmax(x)
     }
 
     fn params(&self) -> Vec<Tensor<T>> {
-        let mut data = Vec::new();
-        for layer in &self.layers {
-            for param in layer.params() {
-                data.push(param);
-            }
-        };
-
-        data
-    }
-}
-
-impl<T: Float> Sequential<T> {
-    pub fn new() -> Self {
-        Self { layers: vec![] }
-    }
-
-    pub fn add<M: Module<T> + 'static>(&mut self, layer: M) {
-        self.layers.push(Box::new(layer));
+        vec![]
     }
 }
