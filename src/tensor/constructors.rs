@@ -1,0 +1,117 @@
+use std::{cell::RefCell, f32::consts::PI, rc::Rc};
+
+use super::*;
+
+use num_traits::{Float, Num, NumAssign};
+use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
+
+
+impl<T: Num + Copy> Tensor<T> {
+    pub(super) fn from_shape_data(shape: Vec<usize>, data: Vec<T>) -> Self {
+        let len = data.len();
+        let tensor = TensorCore {
+            shape,
+            stride: vec![],
+            data,
+            has_grad: false,
+            grad_enabled: false,
+            grad: vec![T::zero(); len],
+            children: Children::None,
+            matrix_count: 0,
+            matrix_stride: 0
+        };
+        let inner = Rc::new(RefCell::new(tensor));
+
+        Self { inner }.init()
+    }
+
+    pub(super) fn from_op(shape: Vec<usize>, data: Vec<T>, grad_criterion: bool, maybe_children: Children<T>) -> Self {
+        let len = data.len();
+        let tensor = TensorCore {
+            shape,
+            stride: vec![],
+            data,
+            has_grad: grad_criterion,
+            grad_enabled: grad_criterion,
+            grad: vec![T::zero(); len],
+            children: if grad_criterion { maybe_children } else { Children::None },
+            matrix_count: 0,
+            matrix_stride: 0
+        };
+        let inner = Rc::new(RefCell::new(tensor));
+
+        Self { inner }.init()
+    }
+
+    pub fn from_flat<S: AsRef<[usize]>, V: AsRef<[T]>>(shape: S, vals: V) -> Self {
+        let shape = shape.as_ref().to_vec();
+        let vals = vals.as_ref().to_vec();
+        let data = (0..vals.len())
+            .map(|i: usize| vals[i])
+            .collect();
+    
+        Self::from_shape_data(shape, data)
+    }
+
+    pub fn fill<S: AsRef<[usize]>>(shape: S, val: T) -> Self {
+        let shape = shape.as_ref().to_vec();
+        let data = vec![val; shape.iter().product()];
+
+        Self::from_shape_data(shape, data)
+    }
+
+    pub fn zeros<S: AsRef<[usize]>>(shape: S) -> Self {
+        Self::fill(shape, T::zero())
+    }
+    
+    pub fn ones<S: AsRef<[usize]>>(shape: S) -> Self {
+        Self::fill(shape, T::one())
+    }
+
+    pub fn fill_like(t: &Tensor<T>, val: T) -> Self {
+        let data = vec![val; t.size()];
+        Self::from_shape_data(t.shape().clone(), data)
+    }
+
+    pub fn zeros_like(t: &Tensor<T>) -> Self {
+        Self::zeros(t.shape().clone())
+    }
+
+    pub fn ones_like(t: &Tensor<T>) -> Self {
+        Self::ones(t.shape().clone())
+    }
+
+    pub fn from_flat_like<V: AsRef<[T]>>(t: &Tensor<T>, vals: V) -> Self {
+        Self::from_flat(t.shape().clone(), vals)
+    }
+}
+
+impl<T: Num + Copy + SampleUniform> Tensor<T> {
+    pub fn new_uniform<S: AsRef<[usize]>>(rng: &mut impl Rng, shape: S, range: impl SampleRange<T> + Clone) -> Self {
+        let shape = shape.as_ref().to_vec();
+        let data = (0..shape.iter().product())
+            .map(|_| rng.random_range(range.clone()))
+            .collect();
+    
+        Self::from_shape_data(shape, data)
+    }
+}
+
+impl<T: Float> Tensor<T>
+where 
+    StandardUniform: Distribution<T>
+{
+    pub fn new_normal<S: AsRef<[usize]>>(rng: &mut impl Rng, shape: S, mean: T, std: T) -> Self {
+        let shape = shape.as_ref().to_vec();
+        let data = (0..shape.iter().product())
+            .map(|_| {
+                let u1 = rng.random();
+                let u2 = rng.random();
+                let sampled = (T::from(-2.0).unwrap() * u1.ln()).sqrt() * (T::from(2.0*PI).unwrap() * u2).cos();
+                mean + sampled * std
+            })
+            .collect();
+    
+        Self::from_shape_data(shape, data)
+    }
+}
