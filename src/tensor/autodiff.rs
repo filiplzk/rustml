@@ -1,4 +1,4 @@
-use std::{cell::{Ref, RefCell, RefMut}, collections::HashSet, fmt, rc::Rc};
+use std::{cell::{Ref, RefCell, RefMut}, collections::HashSet, fmt, rc::Rc, time::Instant};
 use super::*;
 use num_traits::{Float, Num, NumAssign};
 
@@ -194,15 +194,14 @@ impl<T: Float + fmt::Display> Tensor<T> {
         assert!(self.grad_enabled(), "Can't backpropagate on a tensor with disabled gradients");
 
         self.handle_mut().grad = vec![T::one(); self.size()];
-    
-        for t in self.toposort() {
+        for t in &self.toposort() {
             let cur_grad = &t.grad_tensor();
             t.handle_mut().children.update_grads(cur_grad);
         }
     }
 
     pub fn zero_grad(&self) {
-        assert!(self.size() == 1, "Can't reset on a tensor holding more than 1 value");
+        // assert!(self.size() == 1, "Can't reset on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't reset on a tensor with disabled gradients");
 
         for t in self.toposort() {
