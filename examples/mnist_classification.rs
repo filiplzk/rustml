@@ -54,21 +54,21 @@ fn main() {
     let train_batch_size = 4;
     let train_shuffle = true;
     let test_shuffle = true;
-    let epochs = 4;
+    let epochs = 10;
     
     // network
     let mut net = nn::Sequential::new();
     net.add(nn::Linear::new_he(&mut rng, 28*28, 64));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 64, 128));
+    net.add(nn::Linear::new_he(&mut rng, 128, 128));
     net.add(nn::ReLU::new());
     net.add(nn::Linear::new_he(&mut rng, 128, 64));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 64, 10));
+    net.add(nn::Linear::new_he(&mut rng, 8, 10));
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 2e-4, 0.95);
+    let mut optimizer = optim::SGD::new(net.params(), 1e-4, 0.99);
 
     // logging
     let group_size = 100;
@@ -92,23 +92,27 @@ fn main() {
 
     println!("Datasets loaded");
 
+    let mut loss_history: Vec<(f32, f32)> = vec![];
+
     // training
     let mut loss_sum = 0.0;
     for epoch in 1..=epochs {
         for (idx, (data, labels)) in train_dataset.iter().enumerate() {            
             let tgt = labels.stack_new_dim(1, 1).one_hot(10).cast::<f32>();
-            let probs = net.forward(data);        // 2500 micros
+            let probs = net.forward(data);
             
             let batch_losses = functional::cross_entropy_loss(&probs, &tgt);
-            let loss = batch_losses.sum_all() / Tensor::fill([1], batch_losses.size() as f32);          
+            let loss = batch_losses.sum_all() / Tensor::fill([1], batch_losses.size() as f32);
             
-            loss.backward();  // 1500 micros
+            loss.backward();
             optimizer.step();
             loss.zero_grad();
             
             loss_sum += loss.item();
             if (idx + 1) % group_size == 0 {
-                println!("Epoch {}/{}, ({}-{})/{}: average loss={}", epoch, epochs, idx-group_size+2, idx+1, train_dataset.len(), loss_sum / group_size as f32);
+                let avg_loss = loss_sum / group_size as f32;
+                println!("Epoch {}/{}, ({}-{})/{}: average loss={}", epoch, epochs, idx+2-group_size, idx+1, train_dataset.len(), avg_loss);
+                loss_history.push((((loss_history.len() + 1) * group_size) as f32, avg_loss));
                 loss_sum = 0.0;
             }
         }
@@ -135,8 +139,9 @@ fn main() {
         }
     }
 
-    println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
-
     let total_time_s = timer.elapsed().as_millis() as f32 / 1000.0;
+
+    plotting::plot_data("loss.png", "Loss over time", &loss_history).expect("Error while creating a loss plot");
+    println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
     println!("Execution time: {total_time_s:.2}s")
 }
