@@ -51,6 +51,84 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
         out
     }
 
+    pub fn matmul_at(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
+        
+        let b = &self.shape()[..self.dim()-2];
+        let b_rhs = &rhs.shape()[..self.dim()-2];
+        assert!(b == b_rhs, "Matmul requires the same batch dimentions");
+        
+        let batch_cnt = b.iter().product();
+        let (c1, r1) = (self.shape()[self.dim()-2], self.shape()[self.dim()-1]);
+        let (r2, c2) = (rhs.shape()[rhs.dim()-2], rhs.shape()[rhs.dim()-1]);
+        assert!(c1 == r2, "Matmul_at: matrix shapes do not match");
+
+        let out_shape = [b, &[r1], &[c2]].concat();
+        let out = Tensor::zeros(out_shape);
+        for batch in 0..batch_cnt {
+            let b_1_off = batch * r1 * c1;
+            let b_2_off = batch * r2 * c2;
+            let b_out_off = batch * r1 * c2;
+            for r in 0..r1 {
+                for c in 0..c2 {
+                    let mut tot = T::zero();
+                    for i in 0..c1 {
+                        let v1 = self.flat()[b_1_off + i * r1 + r];
+                        let v2 = rhs.flat()[b_2_off + i * c2 + c];
+                        tot = tot + v1 * v2;
+                    }
+                    out.flat_mut()[b_out_off + r * c2 + c] = tot;
+                }
+            }
+        }
+
+        if self.grad_enabled() || rhs.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::Matmul_at(self.clone(), rhs.clone());
+        }
+        out
+    }
+
+    pub fn matmul_bt(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
+        
+        let b = &self.shape()[..self.dim()-2];
+        let b_rhs = &rhs.shape()[..self.dim()-2];
+        assert!(b == b_rhs, "Matmul requires the same batch dimentions");
+        
+        let batch_cnt = b.iter().product();
+        let (r1, c1) = (self.shape()[self.dim()-2], self.shape()[self.dim()-1]);
+        let (c2, r2) = (rhs.shape()[rhs.dim()-2], rhs.shape()[rhs.dim()-1]);
+        assert!(c1 == r2, "Matmul: matrix shapes do not match");
+
+        let out_shape = [b, &[r1], &[c2]].concat();
+        let out = Tensor::zeros(out_shape);
+        for batch in 0..batch_cnt {
+            let b_1_off = batch * r1 * c1;
+            let b_2_off = batch * r2 * c2;
+            let b_out_off = batch * r1 * c2;
+            for r in 0..r1 {
+                for c in 0..c2 {
+                    let mut tot = T::zero();
+                    for i in 0..c1 {
+                        let v1 = self.flat()[b_1_off + r * c1 + i];
+                        let v2 = rhs.flat()[b_2_off + c * r2 + i];
+                        tot = tot + v1 * v2;
+                    }
+                    out.flat_mut()[b_out_off + r * c2 + c] = tot;
+                }
+            }
+        }
+
+        if self.grad_enabled() || rhs.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::Matmul_bt(self.clone(), rhs.clone());
+        }
+        out
+    }
+
     fn sum_1dim(&self, dim: usize) -> Tensor<T> {
         let mut new_shape = self.shape().clone();
         new_shape.remove(dim);

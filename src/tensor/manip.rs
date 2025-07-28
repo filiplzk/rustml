@@ -20,7 +20,7 @@ impl<T: Num + Copy> Tensor<T> {
         if self.grad_enabled() {
             out.handle_mut().has_grad = true;
             out.handle_mut().grad_enabled = true;
-            out.handle_mut().children = Children::NewDim(self.clone(), dim, count);
+            out.handle_mut().children = Children::NewDim(self.clone(), dim);
         }
 
         out
@@ -56,14 +56,19 @@ impl<T: Num + Copy> Tensor<T> {
     }
 
     pub fn left_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {
-        let mut shape_rev = shape.as_ref().to_vec();
-        shape_rev.reverse();
+        let shape = shape.as_ref().to_vec();
+        let batch_size = shape.iter().product();
+        let new_shape = [&shape[..], &self.shape()[..]].concat();
+        let data = self.flat().repeat(batch_size);
 
-        let mut out = self.clone();
-        for cnt in shape_rev {
-            out = out.stack_new_dim(0, cnt);
+        let out = Tensor::from_shape_data(new_shape, data);
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::BCLeft(self.clone(), shape.len());
         }
         out
+
     }
 
     pub fn right_broadcast<S: AsRef<[usize]>>(&self, shape: S) -> Tensor<T> {

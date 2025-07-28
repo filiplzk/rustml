@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Instant};
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
@@ -10,7 +10,8 @@ pub(super) enum Children<T: Num + Copy> {
     Exp(Tensor<T>),
     Log(Tensor<T>),
     DimSum(Tensor<T>, usize),
-    NewDim(Tensor<T>, usize, usize),
+    NewDim(Tensor<T>, usize),
+    BCLeft(Tensor<T>, usize),
     
     Add(Tensor<T>, Tensor<T>),
     Sub(Tensor<T>, Tensor<T>),
@@ -20,6 +21,8 @@ pub(super) enum Children<T: Num + Copy> {
     Max(Tensor<T>, Tensor<T>),
     Pow(Tensor<T>, Tensor<T>),
     Matmul(Tensor<T>, Tensor<T>),
+    Matmul_at(Tensor<T>, Tensor<T>),
+    Matmul_bt(Tensor<T>, Tensor<T>),
 }
 
 impl<T: Float + NumAssignOps> Children<T> {
@@ -34,7 +37,8 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Exp(x) |
             Children::Log(x) |
             Children::DimSum(x, _) |
-            Children::NewDim(x, _, _) => {
+            Children::NewDim(x, _) |
+            Children::BCLeft(x, _) => {
                 vec![x.clone()]
             }
 
@@ -45,7 +49,9 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Min(x, y) |
             Children::Max(x, y) |
             Children::Pow(x, y) |
-            Children::Matmul(x, y) => {
+            Children::Matmul(x, y) |
+            Children::Matmul_at(x, y) |
+            Children::Matmul_bt(x, y) => {
                 vec![x.clone(), y.clone()]
             }
         }
@@ -87,10 +93,33 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(cur_grad.stack_new_dim(*dim, t.shape()[*dim]))
                 }
             }
-            Children::NewDim(t, dim, _) => {
+            Children::NewDim(t, dim) => {
                 if t.grad_enabled() {
                     tensors.push(t);
                     grads.push(cur_grad.sum([*dim]))
+                }
+            }
+            Children::BCLeft(t, dim_cnt) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    // ugly code but speeds up left-broadcasting (massive speed boost for linear networks)
+                    let b_cnt: usize = cur_grad.shape()[0..*dim_cnt].iter().product();
+                    let b_stride = cur_grad.size() / b_cnt;
+
+                    let mut grad_data = vec![T::zero(); b_stride];
+                    let mut idx = 0;
+                    for &val in cur_grad.flat().iter() {
+                        grad_data[idx] += val;
+                        idx += 1;
+
+                        // avoiding modulos
+                        if idx == b_stride {
+                            idx = 0;
+                        }
+                    }
+
+                    let new_shape = cur_grad.shape()[*dim_cnt..].to_vec();
+                    grads.push(Tensor::from_shape_data(new_shape, grad_data));
                 }
             }
 
@@ -202,12 +231,36 @@ impl<T: Float + NumAssignOps> Children<T> {
             }
             Children::Matmul(t1, t2) => {
                 if t1.grad_enabled() {
-                    let grad = cur_grad.matmul(&t2.transpose(t2.dim()-2, t2.dim()-1));
+                    let grad = cur_grad.matmul_bt(t2);
                     tensors.push(t1);
                     grads.push(grad);
                 }
                 if t2.grad_enabled() {
-                    let grad = t1.transpose(t1.dim()-2, t1.dim()-1).matmul(cur_grad);
+                    let grad = t1.matmul_at(cur_grad);
+                    tensors.push(t2);
+                    grads.push(grad);
+                }
+            }
+            Children::Matmul_at(t1, t2) => {
+                if t1.grad_enabled() {
+                    let grad = cur_grad.matmul_bt(t2);
+                    tensors.push(t1);
+                    grads.push(grad);
+                }
+                if t2.grad_enabled() {
+                    let grad = t1.matmul(cur_grad);
+                    tensors.push(t2);
+                    grads.push(grad);
+                }
+            }
+            Children::Matmul_bt(t1, t2) => {
+                if t1.grad_enabled() {
+                    let grad = cur_grad.matmul(t2);
+                    tensors.push(t1);
+                    grads.push(grad);
+                }
+                if t2.grad_enabled() {
+                    let grad = cur_grad.matmul_at(t1);
                     tensors.push(t2);
                     grads.push(grad);
                 }
@@ -246,8 +299,8 @@ impl<T: Float + NumAssignOps> Tensor<T> {
     pub fn backward(&self) {
         assert!(self.size() == 1, "Can't backpropagate on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't backpropagate on a tensor with disabled gradients");
-
         self.handle_mut().grad = vec![T::one(); self.size()];
+
         for t in &self.toposort() {
             let cur_grad = &t.grad_tensor();
             t.handle_mut().children.update_grads(cur_grad);

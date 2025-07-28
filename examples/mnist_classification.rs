@@ -1,9 +1,7 @@
-use std::os::unix::process;
-
+use std::time::Instant;
 use rustml::*;
 use rand::seq::SliceRandom;
 use csv::ReaderBuilder;
-
 
 fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> {
     let mut rdr = ReaderBuilder::new()
@@ -51,25 +49,25 @@ fn main() {
 
     // datasets
     let num_train_samples = 60000;
-    let num_test_samples = 100;
-    let train_batch_size = 2;
+    let num_test_samples = 10000;
+    let train_batch_size = 4;
     let train_shuffle = true;
     let test_shuffle = true;
-    let epochs = 2;
+    let epochs = 5;
     
     // network
     let mut net = nn::Sequential::new();
-    net.add(nn::Linear::new_he(&mut rng, 28*28, 32));
+    net.add(nn::Linear::new_he(&mut rng, 28*28, 64));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 32, 32));
+    net.add(nn::Linear::new_he(&mut rng, 64, 128));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 32, 32));
+    net.add(nn::Linear::new_he(&mut rng, 128, 64));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 32, 10));
+    net.add(nn::Linear::new_he(&mut rng, 64, 10));
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 2e-4, 0.9);
+    let mut optimizer = optim::SGD::new(net.params(), 2e-4, 0.95);
 
     // logging
     let group_size = 100;
@@ -97,13 +95,13 @@ fn main() {
     let mut loss_sum = 0.0;
     for epoch in 1..=epochs {
         for (idx, (data, labels)) in train_dataset.iter().enumerate() {            
-            let tgt = labels.stack_new_dim(1, 1).one_hot(10).cast::<f32>();     
-            let probs = net.forward(data);
-
+            let tgt = labels.stack_new_dim(1, 1).one_hot(10).cast::<f32>();
+            let probs = net.forward(data);        // 2500 micros
+            
             let batch_losses = functional::cross_entropy_loss(&probs, &tgt);
             let loss = batch_losses.sum_all() / Tensor::fill([1], batch_losses.size() as f32);          
-
-            loss.backward();
+            
+            loss.backward();  // 1500 micros
             optimizer.step();
             loss.zero_grad();
             
@@ -114,31 +112,27 @@ fn main() {
             }
         }
     }
-        
+
+    
     // testing
-    // let mut correct = 0;
-    // for (data, label) in &test_dataset {
-    //     let class = label.flat()[0].val();
+    net.eval();        
+    let mut correct = 0;
+    for (data, label) in &test_dataset {
+        let class = label.flat()[0];
 
-    //     let tgt = Tensor::<f32>::zeros([1, 1, 10]);
-    //     for (idx, scalar) in label.flat().iter().enumerate() {
-    //         tgt[[idx, 0, scalar.val()]].set(1.0);
-    //     }
+        let probs = net.forward(data);
 
-    //     let logits = net.forward(data);
-    //     let probs = functional::softmax(&logits);
+        let mut cur_max = 0;
+        for (idx, &prob) in probs.flat().iter().enumerate() {
+            if prob > probs.flat()[cur_max] {
+                cur_max = idx;
+            }
+        }
 
-    //     let mut cur_max = 0;
-    //     for (idx, logit) in probs.flat().iter().enumerate() {
-    //         if logit.val() > probs.flat()[cur_max].val() {
-    //             cur_max = idx;
-    //         }
-    //     }
+        if cur_max == class {
+            correct += 1;
+        }
+    }
 
-    //     if cur_max == class {
-    //         correct += 1;
-    //     }
-    // }
-
-    // println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
+    println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
 }

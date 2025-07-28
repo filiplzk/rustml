@@ -6,16 +6,14 @@ use num_traits::{Float, Num, NumAssignOps};
 pub trait Module<T: Float> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T>;
     fn params(&self) -> Vec<Tensor<T>>;
-}
 
-impl<T: Float> dyn Module<T> {
-    pub fn train(&self) {
+    fn train(&self) {
         for t in &self.params() {
             t.disable_grad();
         }
     }
 
-    pub fn eval(&self) {
+    fn eval(&self) {
         for t in &self.params() {
             t.enable_grad();
         }
@@ -89,6 +87,7 @@ pub struct Sequential<T: Float> {
     pub layers: Vec<Box<dyn Module<T>>>
 }
 
+use std::time::Instant;
 impl<T: Float> Module<T> for Sequential<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         let mut out = x.clone();
