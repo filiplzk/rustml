@@ -1,4 +1,4 @@
-use std::{collections::HashSet, time::Instant};
+use std::collections::HashSet;
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
@@ -21,8 +21,8 @@ pub(super) enum Children<T: Num + Copy> {
     Max(Tensor<T>, Tensor<T>),
     Pow(Tensor<T>, Tensor<T>),
     Matmul(Tensor<T>, Tensor<T>),
-    Matmul_at(Tensor<T>, Tensor<T>),
-    Matmul_bt(Tensor<T>, Tensor<T>),
+    MatmulAT(Tensor<T>, Tensor<T>),
+    MatmulBT(Tensor<T>, Tensor<T>),
 }
 
 impl<T: Float + NumAssignOps> Children<T> {
@@ -50,8 +50,8 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Max(x, y) |
             Children::Pow(x, y) |
             Children::Matmul(x, y) |
-            Children::Matmul_at(x, y) |
-            Children::Matmul_bt(x, y) => {
+            Children::MatmulAT(x, y) |
+            Children::MatmulBT(x, y) => {
                 vec![x.clone(), y.clone()]
             }
         }
@@ -241,7 +241,7 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(grad);
                 }
             }
-            Children::Matmul_at(t1, t2) => {
+            Children::MatmulAT(t1, t2) => {
                 if t1.grad_enabled() {
                     let grad = cur_grad.matmul_bt(t2);
                     tensors.push(t1);
@@ -253,7 +253,7 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(grad);
                 }
             }
-            Children::Matmul_bt(t1, t2) => {
+            Children::MatmulBT(t1, t2) => {
                 if t1.grad_enabled() {
                     let grad = cur_grad.matmul(t2);
                     tensors.push(t1);

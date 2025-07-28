@@ -44,6 +44,7 @@ fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> 
 
 fn main() {
     let mut rng = rand::rng();
+    let timer = Instant::now();
     
     // configuration --------
 
@@ -53,7 +54,7 @@ fn main() {
     let train_batch_size = 4;
     let train_shuffle = true;
     let test_shuffle = true;
-    let epochs = 5;
+    let epochs = 4;
     
     // network
     let mut net = nn::Sequential::new();
@@ -135,4 +136,7 @@ fn main() {
     }
 
     println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
+
+    let total_time_s = timer.elapsed().as_millis() as f32 / 1000.0;
+    println!("Execution time: {total_time_s:.2}s")
 }

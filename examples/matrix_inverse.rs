@@ -1,18 +1,18 @@
 use std::time::Instant;
 use rustml::*;
 
-type FT = f32;
+type FT = f64;
 
 
 fn main() {
-    let start: Instant = Instant::now();
     let mut rng = rand::rng();
+    let start: Instant = Instant::now();
 
     // parameters
-    let batch_size = 4;
+    let batch_size = 1;
     let range: FT = 1.0;
-    let n = 8;
-    let iters = 250000;
+    let n = 24;
+    let iters = 600000;
     let lr: FT = 1e0;
     let print_step = 1000;
     // ----------

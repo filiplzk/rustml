@@ -85,7 +85,7 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
         if self.grad_enabled() || rhs.grad_enabled() {
             out.handle_mut().has_grad = true;
             out.handle_mut().grad_enabled = true;
-            out.handle_mut().children = Children::Matmul_at(self.clone(), rhs.clone());
+            out.handle_mut().children = Children::MatmulAT(self.clone(), rhs.clone());
         }
         out
     }
@@ -124,7 +124,7 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
         if self.grad_enabled() || rhs.grad_enabled() {
             out.handle_mut().has_grad = true;
             out.handle_mut().grad_enabled = true;
-            out.handle_mut().children = Children::Matmul_bt(self.clone(), rhs.clone());
+            out.handle_mut().children = Children::MatmulBT(self.clone(), rhs.clone());
         }
         out
     }

@@ -1,6 +1,6 @@
 use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
-use num_traits::{Float, Num, NumAssignOps};
+use num_traits::{Float, NumAssignOps};
 
 
 pub trait Module<T: Float> {
@@ -87,7 +87,6 @@ pub struct Sequential<T: Float> {
     pub layers: Vec<Box<dyn Module<T>>>
 }
 
-use std::time::Instant;
 impl<T: Float> Module<T> for Sequential<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         let mut out = x.clone();
