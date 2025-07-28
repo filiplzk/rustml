@@ -53,7 +53,7 @@ fn main() {
     // configuration --------
 
     // datasets
-    let num_train_samples = 1000;
+    let num_train_samples = 60000;
     let num_test_samples = 100;
     let train_batch_size = 2;
     let train_shuffle = true;
@@ -90,7 +90,7 @@ fn main() {
         test_dataset.shuffle(&mut rng);
     }
 
-    train_dataset = train_dataset[0..num_train_samples].to_vec();
+    train_dataset = train_dataset[0..num_train_samples / train_batch_size].to_vec();
     test_dataset = test_dataset[0..num_test_samples].to_vec();
 
     println!("Datasets loaded");
