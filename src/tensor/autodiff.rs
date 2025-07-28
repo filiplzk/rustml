@@ -10,6 +10,7 @@ pub(super) enum Children<T: Num + Copy> {
     Exp(Tensor<T>),
     Log(Tensor<T>),
     DimSum(Tensor<T>, usize),
+    NewDim(Tensor<T>, usize, usize),
     
     Add(Tensor<T>, Tensor<T>),
     Sub(Tensor<T>, Tensor<T>),
@@ -32,7 +33,8 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Neg(x) |
             Children::Exp(x) |
             Children::Log(x) |
-            Children::DimSum(x, _) => {
+            Children::DimSum(x, _) |
+            Children::NewDim(x, _, _) => {
                 vec![x.clone()]
             }
 
@@ -83,6 +85,12 @@ impl<T: Float + NumAssignOps> Children<T> {
                 if t.grad_enabled() {
                     tensors.push(t);
                     grads.push(cur_grad.stack_new_dim(*dim, t.shape()[*dim]))
+                }
+            }
+            Children::NewDim(t, dim, _) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    grads.push(cur_grad.sum([*dim]))
                 }
             }
 

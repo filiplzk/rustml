@@ -1,3 +1,5 @@
+use std::os::unix::process;
+
 use rustml::*;
 use rand::seq::SliceRandom;
 use csv::ReaderBuilder;
@@ -48,7 +50,7 @@ fn main() {
     // configuration --------
 
     // datasets
-    let num_train_samples = 1000;
+    let num_train_samples = 60000;
     let num_test_samples = 100;
     let train_batch_size = 2;
     let train_shuffle = true;
@@ -67,7 +69,7 @@ fn main() {
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 2e-4, 0.0);
+    let mut optimizer = optim::SGD::new(net.params(), 2e-4, 0.9);
 
     // logging
     let group_size = 100;
@@ -86,7 +88,7 @@ fn main() {
         test_dataset.shuffle(&mut rng);
     }
 
-    train_dataset = train_dataset[0..num_train_samples].to_vec();
+    train_dataset = train_dataset[0..num_train_samples / train_batch_size].to_vec();
     test_dataset = test_dataset[0..num_test_samples].to_vec();
 
     println!("Datasets loaded");
@@ -95,9 +97,9 @@ fn main() {
     let mut loss_sum = 0.0;
     for epoch in 1..=epochs {
         for (idx, (data, labels)) in train_dataset.iter().enumerate() {            
-            let tgt = labels.one_hot(10).cast::<f32>();     
+            let tgt = labels.stack_new_dim(1, 1).one_hot(10).cast::<f32>();     
             let probs = net.forward(data);
-       
+
             let batch_losses = functional::cross_entropy_loss(&probs, &tgt);
             let loss = batch_losses.sum_all() / Tensor::fill([1], batch_losses.size() as f32);          
 

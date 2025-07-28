@@ -17,6 +17,12 @@ impl<T: Num + Copy> Tensor<T> {
                 *out.get_mut(&ndidx) = val;
             }
         }
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::NewDim(self.clone(), dim, count);
+        }
+
         out
     }
 
