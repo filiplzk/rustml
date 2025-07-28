@@ -184,7 +184,7 @@ impl<T: Num + Copy + PartialOrd> Tensor<T> {
         let data = self.flat()
             .iter()
             .zip(rhs.flat().iter())
-            .map(|(&x, &y)| if x < y { x } else { y })
+            .map(|(&x, &y)| if x > y { x } else { y })
             .collect();
         let children = Children::Max(self.clone(), rhs.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
