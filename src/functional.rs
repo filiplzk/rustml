@@ -1,5 +1,4 @@
 use crate::*;
-use num_traits::{Float, Num, NumAssignOps, NumCast};
 
 pub fn softmax<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
     let rdim = tensor.shape()[tensor.dim() - 1];

@@ -1,6 +1,5 @@
 use std::iter::zip;
 use crate::*;
-use num_traits::Float;
 
 
 pub struct SGD<T: AnyFloat> {

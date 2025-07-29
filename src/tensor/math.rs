@@ -204,35 +204,88 @@ impl<T: AnyNumber> Tensor<T> {
 
     pub fn prod_all(&self) -> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
-        self.unsqueeze(0).sum(dims).squeeze()
+        self.unsqueeze(0).prod(dims).squeeze()
     }
 
-    // fn min_1dim(&self, dim: usize) -> Tensor<T> {
-    //     let mut new_shape = self.shape().clone();
-    //     new_shape.remove(dim);
-
-    //     let out = Tensor::<T>::zeros(new_shape);
+    fn min_1dim(&self, dim: usize) -> Tensor<T> {
+        let out = self.slice_1dim(dim, 0..1).squeeze_at(dim);
     
-    //     for idx in 0..self.size() {
-    //         let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
-    //         let dim_idx = idx % self.handle().stride[dim];
+        for idx in 0..self.size() {
+            let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
+            let dim_idx = idx % self.handle().stride[dim];
             
-    //         // index math magic
-    //         let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
-    //         out.flat_mut()[out_idx] += self.flat()[idx];
-    //     }
+            // index math magic
+            let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
+            if self.flat()[idx] < out.flat()[out_idx] {
+                out.flat_mut()[out_idx] = self.flat()[idx];
+            }
+        }
 
-    //     if self.grad_enabled() {
-    //         out.handle_mut().has_grad = true;
-    //         out.handle_mut().grad_enabled = true;
-    //         out.handle_mut().children = Children::DimSum(self.clone(), dim);
-    //     }
-    //     out
-    // }
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::DimMin(self.clone(), dim);
+        }
+        out
+    }
+
+    pub fn min<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
+        let mut dims = dims.as_ref().to_vec();
+        dims.reverse();
+
+        let mut out = self.clone();
+        for dim in dims {
+            out = out.min_1dim(dim);
+        }
+        out
+    }
+
+    pub fn min_all(&self) -> Tensor<T> {
+        let dims: Vec<usize> = (1..=self.dim()).collect();
+        self.unsqueeze(0).min(dims).squeeze()
+    }
+
+    fn max_1dim(&self, dim: usize) -> Tensor<T> {
+        let out = self.slice_1dim(dim, 0..1).squeeze_at(dim);
+    
+        for idx in 0..self.size() {
+            let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
+            let dim_idx = idx % self.handle().stride[dim];
+            
+            // index math magic
+            let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
+            if self.flat()[idx] > out.flat()[out_idx] {
+                out.flat_mut()[out_idx] = self.flat()[idx];
+            }
+        }
+
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::DimMax(self.clone(), dim);
+        }
+        out
+    }
+
+    pub fn max<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
+        let mut dims = dims.as_ref().to_vec();
+        dims.reverse();
+
+        let mut out = self.clone();
+        for dim in dims {
+            out = out.max_1dim(dim);
+        }
+        out
+    }
+
+    pub fn max_all(&self) -> Tensor<T> {
+        let dims: Vec<usize> = (1..=self.dim()).collect();
+        self.unsqueeze(0).max(dims).squeeze()
+    }
 }
 
 impl<T: AnyNumber> Tensor<T> {
-    pub fn min(&self, rhs: &Tensor<T>) -> Tensor<T> {
+    pub fn min_with(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
             .zip(rhs.flat().iter())
@@ -242,7 +295,7 @@ impl<T: AnyNumber> Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 
-    pub fn max(&self, rhs: &Tensor<T>) -> Tensor<T> {
+    pub fn max_with(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
             .zip(rhs.flat().iter())

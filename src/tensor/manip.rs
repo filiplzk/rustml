@@ -1,5 +1,8 @@
+use std::ops::{Bound, Range, RangeBounds};
+
 use super::*;
 use num_traits::{Num, NumCast};
+use plotters::prelude::Ranged;
 
 // TODO add gradient flow
 impl<T: AnyNumber> Tensor<T> {
@@ -11,7 +14,7 @@ impl<T: AnyNumber> Tensor<T> {
         
         Tensor::from_shape_data(self.shape().clone(), data)
     }
-    
+
     pub fn stack_new_dim(&self, dim: usize, count: usize) -> Tensor<T> {
         let mut new_shape = self.shape().clone();
         new_shape.insert(dim, count);
@@ -38,6 +41,19 @@ impl<T: AnyNumber> Tensor<T> {
     pub fn squeeze(&self) -> Self {
         let mut new_shape = self.shape().clone();        
         new_shape.retain(|&x| x != 1);
+        if new_shape.is_empty() {
+            new_shape = vec![1];
+        }
+        
+        self.reshape(new_shape)
+    }
+
+    pub fn squeeze_at(&self, dim: usize) -> Self {
+        let mut new_shape = self.shape().clone();
+        new_shape.remove(dim);
+        if new_shape.is_empty() {
+            new_shape = vec![1];
+        }
         
         self.reshape(new_shape)
     }
@@ -70,6 +86,41 @@ impl<T: AnyNumber> Tensor<T> {
             out.handle_mut().grad_enabled = true;
             out.handle_mut().children = Children::Reshape(self.clone());
         }
+        out
+    }
+
+    // TODO add gradient flow
+    pub(super) fn slice_1dim(&self, dim: usize, range: Range<usize>) -> Tensor<T> {        
+        let new_dim_cnt = range.len();
+        let mut new_shape = self.shape().clone();
+        new_shape[dim] = new_dim_cnt;
+        
+        let out = Tensor::zeros(new_shape);
+        for i in 0..self.size() {
+            let val = self.flat()[i];
+            let mut ndidx = self.get_ndidx(i);
+            if range.contains(&ndidx[dim]) {
+                ndidx[dim] -= range.start;
+                *out.get_mut(ndidx) = val;
+            }
+        }
+
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::Slice(self.clone(), dim, range);
+        }
+        out
+    }
+
+    pub fn slice<S: AsRef<[Range<usize>]>>(&self, shape: S) -> Tensor<T> {
+        let shape = shape.as_ref().to_vec();
+
+        let mut out = self.clone();
+        for (dim, range) in shape.iter().enumerate() {
+            out = out.slice_1dim(dim, range.clone());
+        }
+
         out
     }
 }

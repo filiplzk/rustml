@@ -1,8 +1,5 @@
-use std::{fmt::Display, process::exit};
-
 use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
-use num_traits::{Float, NumAssignOps};
 
 
 pub trait Module<T: AnyFloat> {
@@ -168,7 +165,7 @@ impl ReLU { pub fn new() -> Self { ReLU } }
 
 impl<T: AnyFloat> Module<T> for ReLU {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
-        x.max(&Tensor::zeros_like(x))
+        x.max_with(&Tensor::zeros_like(x))
     }
 
     fn params(&self) -> Vec<Tensor<T>> {

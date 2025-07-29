@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
@@ -12,8 +12,11 @@ pub(super) enum Children<T: AnyNumber> {
     Log(Tensor<T>),
     DimSum(Tensor<T>, usize),
     DimProd(Tensor<T>, usize),
+    DimMin(Tensor<T>, usize),
+    DimMax(Tensor<T>, usize),
     NewDim(Tensor<T>, usize),
     Reshape(Tensor<T>),
+    Slice(Tensor<T>, usize, Range<usize>),
 
     Add(Tensor<T>, Tensor<T>),
     Sub(Tensor<T>, Tensor<T>),
@@ -40,8 +43,11 @@ impl<T: AnyFloat> Children<T> {
             Children::Log(x) |
             Children::DimSum(x, _) |
             Children::DimProd(x, _) |
+            Children::DimMin(x, _) |
+            Children::DimMax(x, _) |
             Children::NewDim(x, _) |
-            Children::Reshape(x) => {
+            Children::Reshape(x) |
+            Children::Slice(x, _, _) => {
                 vec![x.clone()]
             }
 
@@ -102,6 +108,34 @@ impl<T: AnyFloat> Children<T> {
                     grads.push((parent * cur_grad).stack_new_dim(*dim, t.shape()[*dim]) / t);
                 }
             }
+            Children::DimMin(t, dim) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    let parent_stack = &parent.stack_new_dim(*dim, t.shape()[*dim]);
+                    let cur_grad_stack = &cur_grad.stack_new_dim(*dim, t.shape()[*dim]);
+                    let data = t.flat().iter()
+                        .zip(parent_stack.flat().iter())
+                        .zip((cur_grad_stack).flat().iter())
+                        .map(|((&x, &p), &g)| if x == p { g } else { T::zero() })
+                        .collect();
+                    
+                    grads.push(Tensor::from_shape_data(t.shape().clone(), data));
+                }
+            }
+            Children::DimMax(t, dim) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    let parent_stack = &parent.stack_new_dim(*dim, t.shape()[*dim]);
+                    let cur_grad_stack = &cur_grad.stack_new_dim(*dim, t.shape()[*dim]);
+                    let data = t.flat().iter()
+                        .zip(parent_stack.flat().iter())
+                        .zip((cur_grad_stack).flat().iter())
+                        .map(|((&x, &p), &g)| if x == p { g } else { T::zero() })
+                        .collect();
+                    
+                    grads.push(Tensor::from_shape_data(t.shape().clone(), data));
+                }
+            }
             Children::NewDim(t, dim) => {
                 if t.grad_enabled() {
                     tensors.push(t);
@@ -112,6 +146,18 @@ impl<T: AnyFloat> Children<T> {
                 if t.grad_enabled() {
                     tensors.push(t);
                     grads.push(cur_grad.reshape(t.shape().clone()))
+                }
+            }
+            Children::Slice(t, dim, range) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    let new_grad = Tensor::<T>::zeros_like(t);
+                    for (idx, &val) in cur_grad.flat().iter().enumerate() {
+                        let mut ndidx: Vec<usize> = cur_grad.get_ndidx(idx);
+                        ndidx[*dim] += range.start;
+                        *new_grad.get_mut(ndidx) = val;
+                    }
+                    grads.push(new_grad);
                 }
             }
 
