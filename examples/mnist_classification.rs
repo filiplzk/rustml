@@ -1,6 +1,6 @@
 use std::time::Instant;
-use rustml::{nn::ReLU, *};
-use rand::seq::SliceRandom;
+use rustml::*;
+use rand::{seq::SliceRandom, SeedableRng};
 use csv::ReaderBuilder;
 
 fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> {
@@ -43,7 +43,8 @@ fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> 
 
 
 fn main() {
-    let mut rng = rand::rng();
+    // let mut rng = rand::rng();
+    let mut rng = rand::rngs::StdRng::seed_from_u64(123457);
     let timer = Instant::now();
     
     // configuration --------
@@ -51,24 +52,24 @@ fn main() {
     // datasets
     let num_train_samples = 60000;
     let num_test_samples = 10000;
-    let train_batch_size = 4;
+    let train_batch_size = 1;
     let train_shuffle = true;
     let test_shuffle = true;
     let epochs = 10;
     
     // network
     let mut net = nn::Sequential::new();
-    net.add(nn::Linear::new_he(&mut rng, 28*28, 128));
-    net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 128, 128));
-    net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 128, 64));
-    net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 64, 10));
+    net.add(nn::Linear::new_he(&mut rng, 28*28, 8));
+    // net.add(nn::ReLU::new());
+    // net.add(nn::Linear::new_he(&mut rng, 128, 128));
+    // net.add(nn::ReLU::new());
+    // net.add(nn::Linear::new_he(&mut rng, 128, 64));
+    // net.add(nn::ReLU::new());
+    net.add(nn::Linear::new_he(&mut rng, 8, 10));
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 1e-2, 0.99);
+    let mut optimizer = optim::SGD::new(net.params(), 2e-3, 0.99);
 
     // logging
     let group_size = 100;
@@ -141,7 +142,7 @@ fn main() {
 
     let total_time_s = timer.elapsed().as_millis() as f32 / 1000.0;
 
-    plotting::plot_data("loss.png", "Loss over time", &loss_history).expect("Error while creating a loss plot");
+    plotting::plot_data("_loss.png", "Loss over time", &loss_history).expect("Error while creating a loss plot");
     println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
     println!("Execution time: {total_time_s:.2}s")
 }

@@ -1,11 +1,11 @@
-use std::fmt::Display;
+use std::{fmt::Display, process::exit};
 
 use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
 use num_traits::{Float, NumAssignOps};
 
 
-pub trait Module<T: Float> {
+pub trait Module<T: AnyFloat> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T>;
     fn params(&self) -> Vec<Tensor<T>>;
 
@@ -23,14 +23,14 @@ pub trait Module<T: Float> {
 }
 
 
-pub struct Linear<T: Float> {
+pub struct Linear<T: AnyFloat> {
     input: usize,
     output: usize,
     weights: Tensor<T>,
     biases: Tensor<T>,
 }
 
-impl<T: Float + NumAssignOps + Display> Module<T> for Linear<T> {
+impl<T: AnyFloat> Module<T> for Linear<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         assert!(x.dim() >= 2, "Linear::forward(): Expected tensor of dim >= 2, got less");
 
@@ -51,7 +51,7 @@ impl<T: Float + NumAssignOps + Display> Module<T> for Linear<T> {
     }
 }
 
-impl<T: Float> Linear<T> {
+impl<T: AnyFloat> Linear<T> {
     pub fn zeros(input: usize, output: usize) -> Self {
         Self {
             input,
@@ -62,7 +62,7 @@ impl<T: Float> Linear<T> {
     }
 }
 
-impl<T: Float + SampleUniform> Linear<T> {
+impl<T: AnyFloat + SampleUniform> Linear<T> {
     pub fn new_uniform<R: SampleRange<T> + Clone>(r: &mut impl Rng, input: usize, output: usize, w_range: R, b_range: R) -> Self {
         Self {
             input,
@@ -73,7 +73,7 @@ impl<T: Float + SampleUniform> Linear<T> {
     }
 }
 
-impl<T: Float> Linear<T>
+impl<T: AnyFloat> Linear<T>
 where
     StandardUniform: Distribution<T>
 {
@@ -103,17 +103,21 @@ where
 }
 
 
-pub struct Sequential<T: Float> {
+pub struct Sequential<T: AnyFloat> {
     pub layers: Vec<Box<dyn Module<T>>>
 }
 
-impl<T: Float> Module<T> for Sequential<T> {
+impl<T: AnyFloat> Module<T> for Sequential<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         let mut out = x.clone();
+        println!("\n\nSTART{}", out);
         for layer in &self.layers {
             out = layer.forward(&out);
+            println!("{}", out);
+            if out.flat()[0].is_nan() {
+                panic!();
+            }
         };
-
         out
     }
 
@@ -129,7 +133,7 @@ impl<T: Float> Module<T> for Sequential<T> {
     }
 }
 
-impl<T: Float> Sequential<T> {
+impl<T: AnyFloat> Sequential<T> {
     pub fn new() -> Self {
         Self { layers: vec![] }
     }
@@ -143,7 +147,7 @@ impl<T: Float> Sequential<T> {
 pub struct Tanh;
 impl Tanh { pub fn new() -> Self { Tanh } }
 
-impl<T: Float> Module<T> for Tanh {
+impl<T: AnyFloat> Module<T> for Tanh {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         let ex = x.exp();
         let emx = (-x).exp(); // e^{-x}
@@ -162,7 +166,7 @@ impl<T: Float> Module<T> for Tanh {
 pub struct ReLU;
 impl ReLU { pub fn new() -> Self { ReLU } }
 
-impl<T: Float> Module<T> for ReLU {
+impl<T: AnyFloat> Module<T> for ReLU {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         x.max(&Tensor::zeros_like(x))
     }
@@ -175,7 +179,7 @@ impl<T: Float> Module<T> for ReLU {
 pub struct Softmax;
 impl Softmax { pub fn new() -> Self { Softmax } }
 
-impl<T: Float + NumAssignOps> Module<T> for Softmax {
+impl<T: AnyFloat> Module<T> for Softmax {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         functional::softmax(x)
     }

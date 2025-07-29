@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
-pub(super) enum Children<T: Num + Copy> {
+#[derive(Clone)]
+pub(super) enum Children<T: AnyNumber> {
     None,
     
     Id(Tensor<T>),
@@ -10,6 +11,7 @@ pub(super) enum Children<T: Num + Copy> {
     Exp(Tensor<T>),
     Log(Tensor<T>),
     DimSum(Tensor<T>, usize),
+    DimProd(Tensor<T>, usize),
     NewDim(Tensor<T>, usize),
     Reshape(Tensor<T>),
 
@@ -25,7 +27,7 @@ pub(super) enum Children<T: Num + Copy> {
     MatmulBT(Tensor<T>, Tensor<T>),
 }
 
-impl<T: Float + NumAssignOps> Children<T> {
+impl<T: AnyFloat> Children<T> {
     fn children_vec(&self) -> Vec<Tensor<T>> {
         match &self {
             Children::None => {
@@ -37,6 +39,7 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Exp(x) |
             Children::Log(x) |
             Children::DimSum(x, _) |
+            Children::DimProd(x, _) |
             Children::NewDim(x, _) |
             Children::Reshape(x) => {
                 vec![x.clone()]
@@ -57,7 +60,7 @@ impl<T: Float + NumAssignOps> Children<T> {
         }
     }
 
-    fn update_grads(&self, cur_grad: &Tensor<T>) {
+    fn update_grads(&self, parent: &Tensor<T>, cur_grad: &Tensor<T>) {
         let mut tensors = vec![];
         let mut grads = vec![];
         match self {
@@ -91,6 +94,12 @@ impl<T: Float + NumAssignOps> Children<T> {
                 if t.grad_enabled() {
                     tensors.push(t);
                     grads.push(cur_grad.stack_new_dim(*dim, t.shape()[*dim]))
+                }
+            }
+            Children::DimProd(t, dim) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    grads.push((parent * cur_grad).stack_new_dim(*dim, t.shape()[*dim]) / t);
                 }
             }
             Children::NewDim(t, dim) => {
@@ -257,7 +266,7 @@ impl<T: Float + NumAssignOps> Children<T> {
     }
 }
 
-impl<T: Float + NumAssignOps> Tensor<T> {
+impl<T: AnyFloat> Tensor<T> {
     fn rev_toposort(&self, vec: &mut Vec<Tensor<T>>, seen: &mut HashSet<usize>) {
         seen.insert(self.id());
         
@@ -286,7 +295,8 @@ impl<T: Float + NumAssignOps> Tensor<T> {
 
         for t in &self.toposort() {
             let cur_grad = &t.grad_tensor();
-            t.handle_mut().children.update_grads(cur_grad);
+            let children = t.handle().children.clone();
+            children.update_grads(&t, cur_grad);
         }
     }
 

@@ -4,7 +4,7 @@ use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, Standard
 use num_traits::{Float, Num};
 
 
-impl<T: Num + Copy> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub(super) fn from_shape_data(shape: Vec<usize>, data: Vec<T>) -> Self {
         let len = data.len();
         let tensor = TensorCore {
@@ -67,25 +67,25 @@ impl<T: Num + Copy> Tensor<T> {
         Self::fill(shape, T::one())
     }
 
-    pub fn fill_like<U: Num + Copy>(t: &Tensor<U>, val: T) -> Self {
+    pub fn fill_like<U: AnyNumber>(t: &Tensor<U>, val: T) -> Self {
         let data = vec![val; t.size()];
         Self::from_shape_data(t.shape().clone(), data)
     }
 
-    pub fn zeros_like<U: Num + Copy>(t: &Tensor<U>) -> Self {
+    pub fn zeros_like<U: AnyNumber>(t: &Tensor<U>) -> Self {
         Self::zeros(t.shape().clone())
     }
 
-    pub fn ones_like<U: Num + Copy>(t: &Tensor<U>) -> Self {
+    pub fn ones_like<U: AnyNumber>(t: &Tensor<U>) -> Self {
         Self::ones(t.shape().clone())
     }
 
-    pub fn from_flat_like<U: Num + Copy, V: AsRef<[T]>>(t: &Tensor<U>, vals: V) -> Self {
+    pub fn from_flat_like<U: AnyNumber, V: AsRef<[T]>>(t: &Tensor<U>, vals: V) -> Self {
         Self::from_flat(t.shape().clone(), vals)
     }
 }
 
-impl<T: Num + Copy + SampleUniform> Tensor<T> {
+impl<T: AnyNumber + SampleUniform> Tensor<T> {
     pub fn new_uniform<S: AsRef<[usize]>>(rng: &mut impl Rng, shape: S, range: impl SampleRange<T> + Clone) -> Self {
         let shape = shape.as_ref().to_vec();
         let data = (0..shape.iter().product())
@@ -96,7 +96,7 @@ impl<T: Num + Copy + SampleUniform> Tensor<T> {
     }
 }
 
-impl<T: Float> Tensor<T>
+impl<T: AnyFloat> Tensor<T>
 where 
     StandardUniform: Distribution<T>
 {

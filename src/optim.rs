@@ -3,14 +3,14 @@ use crate::*;
 use num_traits::Float;
 
 
-pub struct SGD<T: Float> {
+pub struct SGD<T: AnyFloat> {
     params: Vec<Tensor<T>>,
     grads: Vec<Tensor<T>>,
     lr: T,
     momentum: T
 }
 
-impl<T: Float> SGD<T> {
+impl<T: AnyFloat> SGD<T> {
     pub fn new(params: Vec<Tensor<T>>, lr: T, momentum: T) -> Self {
         let grads: Vec<Tensor<T>> = params.iter()
             .map(|t| Tensor::zeros_like(t))

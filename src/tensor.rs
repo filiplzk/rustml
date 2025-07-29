@@ -1,5 +1,6 @@
 #![allow(unused_imports)]  // stoopid rust-analyzer gives a warning for some reason
 
+pub mod types;
 pub mod core;
 pub mod autodiff;
 pub mod constructors;
@@ -7,6 +8,7 @@ pub mod manip;
 pub mod math;
 pub mod util;
 
+pub use types::*;
 pub use core::*;
 pub use autodiff::*;
 pub use constructors::*;

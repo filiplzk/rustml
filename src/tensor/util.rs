@@ -2,7 +2,7 @@ use std::fmt;
 use super::*;
 use num_traits::Num;
 
-pub fn make_string<T: Num + Copy + fmt::Display>(tensor: &Tensor<T>, idx: &mut Vec<usize>, layer: usize, val: bool) -> String {
+pub fn make_string<T: AnyNumber>(tensor: &Tensor<T>, idx: &mut Vec<usize>, layer: usize, val: bool) -> String {
     let next_dim_size = tensor.shape()[idx.len()];
 
     let single = idx.len() == tensor.dim() - 1;
@@ -42,7 +42,7 @@ pub fn make_string<T: Num + Copy + fmt::Display>(tensor: &Tensor<T>, idx: &mut V
     out
 }
 
-impl<T: Num + Copy + fmt::Display> std::fmt::Debug for Tensor<T> {
+impl<T: AnyNumber> std::fmt::Debug for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let out = format!("Tensor(Values={}, Grads={})", 
             make_string(&self, &mut vec![], 0, true),
@@ -53,7 +53,7 @@ impl<T: Num + Copy + fmt::Display> std::fmt::Debug for Tensor<T> {
     }
 }
 
-impl<T: Num + Copy + fmt::Display> std::fmt::Display for Tensor<T> {
+impl<T: AnyNumber> std::fmt::Display for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let out = format!("{}", make_string(&self, &mut vec![], 0, true));
 

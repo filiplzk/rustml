@@ -3,7 +3,7 @@ use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
 
-impl<T: Num + Copy> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub fn duplicate(&self) -> Tensor<T> {
         let data = self.flat().clone();
         let children = Children::Id(self.clone());
@@ -11,7 +11,7 @@ impl<T: Num + Copy> Tensor<T> {
     }
 }
 
-impl<T: Num + Copy + NumAssignOps> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub fn matmul(&self, rhs: &Tensor<T>) -> Tensor<T> {
         assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
         
@@ -167,9 +167,71 @@ impl<T: Num + Copy + NumAssignOps> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).sum(dims).squeeze()
     }
+
+    fn prod_1dim(&self, dim: usize) -> Tensor<T> {
+        let mut new_shape = self.shape().clone();
+        new_shape.remove(dim);
+    
+        let out = Tensor::<T>::ones(new_shape);
+    
+        for idx in 0..self.size() {
+            let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
+            let dim_idx = idx % self.handle().stride[dim];
+            
+            // index math magic
+            let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
+            out.flat_mut()[out_idx] *= self.flat()[idx];
+        }
+
+        if self.grad_enabled() {
+            out.handle_mut().has_grad = true;
+            out.handle_mut().grad_enabled = true;
+            out.handle_mut().children = Children::DimProd(self.clone(), dim);
+        }
+        out
+    }
+
+    pub fn prod<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
+        let mut dims = dims.as_ref().to_vec();
+        dims.reverse();
+
+        let mut out = self.clone();
+        for dim in dims {
+            out = out.prod_1dim(dim);
+        }
+        out
+    }
+
+    pub fn prod_all(&self) -> Tensor<T> {
+        let dims: Vec<usize> = (1..=self.dim()).collect();
+        self.unsqueeze(0).sum(dims).squeeze()
+    }
+
+    // fn min_1dim(&self, dim: usize) -> Tensor<T> {
+    //     let mut new_shape = self.shape().clone();
+    //     new_shape.remove(dim);
+
+    //     let out = Tensor::<T>::zeros(new_shape);
+    
+    //     for idx in 0..self.size() {
+    //         let dim_cnt = (idx / self.handle().stride[dim]) % self.shape()[dim];
+    //         let dim_idx = idx % self.handle().stride[dim];
+            
+    //         // index math magic
+    //         let out_idx = (idx - dim_cnt*self.handle().stride[dim] - dim_idx) / self.shape()[dim] + dim_idx;
+    //         out.flat_mut()[out_idx] += self.flat()[idx];
+    //     }
+
+    //     if self.grad_enabled() {
+    //         out.handle_mut().has_grad = true;
+    //         out.handle_mut().grad_enabled = true;
+    //         out.handle_mut().children = Children::DimSum(self.clone(), dim);
+    //     }
+    //     out
+    // }
 }
 
-impl<T: Num + Copy + PartialOrd> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub fn min(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
@@ -191,7 +253,7 @@ impl<T: Num + Copy + PartialOrd> Tensor<T> {
     }
 }
 
-impl<T: Num + Copy> Neg for &Tensor<T> {
+impl<T: AnyNumber> Neg for &Tensor<T> {
     type Output = Tensor<T>;
     fn neg(self) -> Tensor<T> {
         let data = self.flat()
@@ -202,10 +264,10 @@ impl<T: Num + Copy> Neg for &Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
     }
 }
-impl<T: Num + Copy> Neg for Tensor<T> { type Output = Tensor<T>; fn neg(self) -> Tensor<T> { -&self } }
+impl<T: AnyNumber> Neg for Tensor<T> { type Output = Tensor<T>; fn neg(self) -> Tensor<T> { -&self } }
 
 
-impl<T: Num + Copy> Add<&Tensor<T>> for &Tensor<T> {
+impl<T: AnyNumber> Add<&Tensor<T>> for &Tensor<T> {
     type Output = Tensor<T>;
     fn add(self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
@@ -217,14 +279,14 @@ impl<T: Num + Copy> Add<&Tensor<T>> for &Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 }
-impl<T: Num + Copy> Add<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: &Tensor<T>) -> Tensor<T> { &self + rhs } }
-impl<T: Num + Copy> Add<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: Tensor<T>) -> Tensor<T> { self + &rhs } }
-impl<T: Num + Copy> Add<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: Tensor<T>) -> Tensor<T> { &self + &rhs } }
-impl<T: Num + Copy> AddAssign<&Tensor<T>> for Tensor<T> { fn add_assign(&mut self, rhs: &Tensor<T>) { *self = &*self + rhs; } }
-impl<T: Num + Copy> AddAssign<Tensor<T>> for Tensor<T> { fn add_assign(&mut self, rhs: Tensor<T>) { *self = &*self + &rhs; } }
+impl<T: AnyNumber> Add<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: &Tensor<T>) -> Tensor<T> { &self + rhs } }
+impl<T: AnyNumber> Add<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: Tensor<T>) -> Tensor<T> { self + &rhs } }
+impl<T: AnyNumber> Add<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn add(self, rhs: Tensor<T>) -> Tensor<T> { &self + &rhs } }
+impl<T: AnyNumber> AddAssign<&Tensor<T>> for Tensor<T> { fn add_assign(&mut self, rhs: &Tensor<T>) { *self = &*self + rhs; } }
+impl<T: AnyNumber> AddAssign<Tensor<T>> for Tensor<T> { fn add_assign(&mut self, rhs: Tensor<T>) { *self = &*self + &rhs; } }
 
 
-impl<T: Num + Copy> Sub<&Tensor<T>> for &Tensor<T> {
+impl<T: AnyNumber> Sub<&Tensor<T>> for &Tensor<T> {
     type Output = Tensor<T>;
     fn sub(self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
@@ -236,14 +298,14 @@ impl<T: Num + Copy> Sub<&Tensor<T>> for &Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 }
-impl<T: Num + Copy>  Sub<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: &Tensor<T>) -> Tensor<T> { self + (-rhs) } }
-impl<T: Num + Copy>  Sub<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: Tensor<T>) -> Tensor<T> { self + (-rhs) } }
-impl<T: Num + Copy>  Sub<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: Tensor<T>) -> Tensor<T> { self + (-rhs) } }
-impl<T: Num + Copy> SubAssign<&Tensor<T>> for Tensor<T> { fn sub_assign(&mut self, rhs: &Tensor<T>) { *self = &*self - rhs; } }
-impl<T: Num + Copy> SubAssign<Tensor<T>> for Tensor<T> { fn sub_assign(&mut self, rhs: Tensor<T>) { *self = &*self - &rhs; } }
+impl<T: AnyNumber>  Sub<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: &Tensor<T>) -> Tensor<T> { self + (-rhs) } }
+impl<T: AnyNumber>  Sub<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: Tensor<T>) -> Tensor<T> { self + (-rhs) } }
+impl<T: AnyNumber>  Sub<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn sub(self, rhs: Tensor<T>) -> Tensor<T> { self + (-rhs) } }
+impl<T: AnyNumber> SubAssign<&Tensor<T>> for Tensor<T> { fn sub_assign(&mut self, rhs: &Tensor<T>) { *self = &*self - rhs; } }
+impl<T: AnyNumber> SubAssign<Tensor<T>> for Tensor<T> { fn sub_assign(&mut self, rhs: Tensor<T>) { *self = &*self - &rhs; } }
 
 
-impl<T: Num + Copy> Mul<&Tensor<T>> for &Tensor<T> {
+impl<T: AnyNumber> Mul<&Tensor<T>> for &Tensor<T> {
     type Output = Tensor<T>;
     fn mul(self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
@@ -255,14 +317,14 @@ impl<T: Num + Copy> Mul<&Tensor<T>> for &Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 }
-impl<T: Num + Copy> Mul<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: &Tensor<T>) -> Tensor<T> { &self * rhs } }
-impl<T: Num + Copy> Mul<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: Tensor<T>) -> Tensor<T> { self * &rhs } }
-impl<T: Num + Copy> Mul<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: Tensor<T>) -> Tensor<T> { &self * &rhs } }
-impl<T: Num + Copy> MulAssign<&Tensor<T>> for Tensor<T> { fn mul_assign(&mut self, rhs: &Tensor<T>) { *self = &*self * rhs; } }
-impl<T: Num + Copy> MulAssign<Tensor<T>> for Tensor<T> { fn mul_assign(&mut self, rhs: Tensor<T>) { *self = &*self * &rhs; } }
+impl<T: AnyNumber> Mul<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: &Tensor<T>) -> Tensor<T> { &self * rhs } }
+impl<T: AnyNumber> Mul<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: Tensor<T>) -> Tensor<T> { self * &rhs } }
+impl<T: AnyNumber> Mul<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn mul(self, rhs: Tensor<T>) -> Tensor<T> { &self * &rhs } }
+impl<T: AnyNumber> MulAssign<&Tensor<T>> for Tensor<T> { fn mul_assign(&mut self, rhs: &Tensor<T>) { *self = &*self * rhs; } }
+impl<T: AnyNumber> MulAssign<Tensor<T>> for Tensor<T> { fn mul_assign(&mut self, rhs: Tensor<T>) { *self = &*self * &rhs; } }
 
 
-impl<T: Num + Copy> Div<&Tensor<T>> for &Tensor<T> {
+impl<T: AnyNumber> Div<&Tensor<T>> for &Tensor<T> {
     type Output = Tensor<T>;
     fn div(self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
@@ -274,15 +336,15 @@ impl<T: Num + Copy> Div<&Tensor<T>> for &Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 }
-impl<T: Num + Copy> Div<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: &Tensor<T>) -> Tensor<T> { &self / rhs } }
-impl<T: Num + Copy> Div<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: Tensor<T>) -> Tensor<T> { self / &rhs } }
-impl<T: Num + Copy> Div<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: Tensor<T>) -> Tensor<T> { &self / &rhs } }
-impl<T: Num + Copy> DivAssign<&Tensor<T>> for Tensor<T> { fn div_assign(&mut self, rhs: &Tensor<T>) { *self = &*self / rhs; } }
-impl<T: Num + Copy> DivAssign<Tensor<T>> for Tensor<T> { fn div_assign(&mut self, rhs: Tensor<T>) { *self = &*self / &rhs; } }
+impl<T: AnyNumber> Div<&Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: &Tensor<T>) -> Tensor<T> { &self / rhs } }
+impl<T: AnyNumber> Div<Tensor<T>> for &Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: Tensor<T>) -> Tensor<T> { self / &rhs } }
+impl<T: AnyNumber> Div<Tensor<T>> for Tensor<T> { type Output = Tensor<T>; fn div(self, rhs: Tensor<T>) -> Tensor<T> { &self / &rhs } }
+impl<T: AnyNumber> DivAssign<&Tensor<T>> for Tensor<T> { fn div_assign(&mut self, rhs: &Tensor<T>) { *self = &*self / rhs; } }
+impl<T: AnyNumber> DivAssign<Tensor<T>> for Tensor<T> { fn div_assign(&mut self, rhs: Tensor<T>) { *self = &*self / &rhs; } }
 
 
 // floating point operations
-impl<T: Float> Tensor<T> {
+impl<T: AnyFloat> Tensor<T> {
     pub fn exp(&self) -> Tensor<T> {
         let data = self.flat()
             .iter()

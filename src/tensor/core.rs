@@ -4,11 +4,11 @@ use num_traits::{Num, Float};
 
 
 #[derive(Clone)]
-pub struct Tensor<T: Num + Copy> {
+pub struct Tensor<T: AnyNumber> {
     pub(super) inner: Rc<RefCell<TensorCore<T>>>
 }
 
-pub struct TensorCore<T: Num + Copy> {
+pub struct TensorCore<T: AnyNumber> {
     pub(super) shape: Vec<usize>,
     pub(super) stride: Vec<usize>,
     pub(super) data: Vec<T>,
@@ -19,7 +19,7 @@ pub struct TensorCore<T: Num + Copy> {
     pub(super) children: Children<T>,
 }
 
-impl<T: Num + Copy> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub(super) fn init(&self) -> Self {
         let mut tensor = self.inner.borrow_mut();
         tensor.stride = vec![0; tensor.shape.len()];
@@ -116,7 +116,7 @@ impl<T: Num + Copy> Tensor<T> {
 }
 
 
-impl<T: Float> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
     pub fn with_grad(&self) -> Self {
         {
             let mut tensor: RefMut<'_, TensorCore<T>> = self.handle_mut();

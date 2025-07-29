@@ -2,7 +2,16 @@ use super::*;
 use num_traits::{Num, NumCast};
 
 // TODO add gradient flow
-impl<T: Num + Copy> Tensor<T> {
+impl<T: AnyNumber> Tensor<T> {
+    pub fn cast<U: AnyNumber>(&self) -> Tensor<U> {
+        let data = self.flat()
+            .iter()
+            .map(|&x| U::from(x).unwrap())
+            .collect();
+        
+        Tensor::from_shape_data(self.shape().clone(), data)
+    }
+    
     pub fn stack_new_dim(&self, dim: usize, count: usize) -> Tensor<T> {
         let mut new_shape = self.shape().clone();
         new_shape.insert(dim, count);
@@ -66,16 +75,6 @@ impl<T: Num + Copy> Tensor<T> {
 }
 
 
-impl<T: Num + Copy + NumCast> Tensor<T> {
-    pub fn cast<U: Num + Copy + NumCast>(&self) -> Tensor<U> {
-        let data = self.flat()
-            .iter()
-            .map(|&x| U::from(x).unwrap())
-            .collect();
-        
-        Tensor::from_shape_data(self.shape().clone(), data)
-    }
-}
 
 
 impl Tensor<usize> {
