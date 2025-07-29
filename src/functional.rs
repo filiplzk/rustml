@@ -8,7 +8,7 @@ pub fn softmax<T: Float + NumAssignOps>(tensor: &Tensor<T>) -> Tensor<T> {
     let shifted = tensor;  // TODO add shifting for numerical stability
 
     let exp = shifted.exp();
-    let exp_sum = exp.sum([shifted.dim()-1]).right_broadcast([rdim]);
+    let exp_sum = exp.sum([shifted.dim()-1]).stack_new_dim(exp.dim()-1, rdim);
 
     exp / exp_sum
 }

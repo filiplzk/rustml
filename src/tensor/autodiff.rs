@@ -11,8 +11,8 @@ pub(super) enum Children<T: Num + Copy> {
     Log(Tensor<T>),
     DimSum(Tensor<T>, usize),
     NewDim(Tensor<T>, usize),
-    BCLeft(Tensor<T>, usize),
-    
+    Reshape(Tensor<T>),
+
     Add(Tensor<T>, Tensor<T>),
     Sub(Tensor<T>, Tensor<T>),
     Mul(Tensor<T>, Tensor<T>),
@@ -38,7 +38,7 @@ impl<T: Float + NumAssignOps> Children<T> {
             Children::Log(x) |
             Children::DimSum(x, _) |
             Children::NewDim(x, _) |
-            Children::BCLeft(x, _) => {
+            Children::Reshape(x) => {
                 vec![x.clone()]
             }
 
@@ -99,27 +99,10 @@ impl<T: Float + NumAssignOps> Children<T> {
                     grads.push(cur_grad.sum([*dim]))
                 }
             }
-            Children::BCLeft(t, dim_cnt) => {
+            Children::Reshape(t) => {
                 if t.grad_enabled() {
                     tensors.push(t);
-                    // ugly code but speeds up left-broadcasting (massive speed boost for linear networks)
-                    let b_cnt: usize = cur_grad.shape()[0..*dim_cnt].iter().product();
-                    let b_stride = cur_grad.size() / b_cnt;
-
-                    let mut grad_data = vec![T::zero(); b_stride];
-                    let mut idx = 0;
-                    for &val in cur_grad.flat().iter() {
-                        grad_data[idx] += val;
-                        idx += 1;
-
-                        // avoiding modulos
-                        if idx == b_stride {
-                            idx = 0;
-                        }
-                    }
-
-                    let new_shape = cur_grad.shape()[*dim_cnt..].to_vec();
-                    grads.push(Tensor::from_shape_data(new_shape, grad_data));
+                    grads.push(cur_grad.reshape(t.shape().clone()))
                 }
             }
 
@@ -170,28 +153,6 @@ impl<T: Float + NumAssignOps> Children<T> {
                     t1.flat()
                             .iter()
                             .zip(t2.grad().iter())
-                            .map(|(&x, &y)| if x > y { T::one() } else { T::zero() })
-                            .collect::<Vec<T>>()
-                    ) * cur_grad);
-                }
-                if t2.grad_enabled() {
-                    tensors.push(t2);
-                    grads.push(Tensor::from_flat_like(t2, 
-                    t2.flat()
-                            .iter()
-                            .zip(t1.grad().iter())
-                            .map(|(&y, &x)| if y > x { T::one() } else { T::zero() })
-                            .collect::<Vec<T>>()
-                    ) * cur_grad);
-                }
-            }
-            Children::Max(t1, t2) => {
-                if t1.grad_enabled() {
-                    tensors.push(t1);
-                    grads.push(Tensor::from_flat_like(t1, 
-                    t1.flat()
-                            .iter()
-                            .zip(t2.grad().iter())
                             .map(|(&x, &y)| if x < y { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
                     ) * cur_grad);
@@ -203,6 +164,28 @@ impl<T: Float + NumAssignOps> Children<T> {
                             .iter()
                             .zip(t1.grad().iter())
                             .map(|(&y, &x)| if y < x { T::one() } else { T::zero() })
+                            .collect::<Vec<T>>()
+                    ) * cur_grad);
+                }
+            }
+            Children::Max(t1, t2) => {
+                if t1.grad_enabled() {
+                    tensors.push(t1);
+                    grads.push(Tensor::from_flat_like(t1, 
+                    t1.flat()
+                            .iter()
+                            .zip(t2.grad().iter())
+                            .map(|(&x, &y)| if x > y { T::one() } else { T::zero() })
+                            .collect::<Vec<T>>()
+                    ) * cur_grad);
+                }
+                if t2.grad_enabled() {
+                    tensors.push(t2);
+                    grads.push(Tensor::from_flat_like(t2, 
+                    t2.flat()
+                            .iter()
+                            .zip(t1.grad().iter())
+                            .map(|(&y, &x)| if y > x { T::one() } else { T::zero() })
                             .collect::<Vec<T>>()
                     ) * cur_grad);
                 }

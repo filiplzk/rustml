@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
 use num_traits::{Float, NumAssignOps};
@@ -22,16 +24,26 @@ pub trait Module<T: Float> {
 
 
 pub struct Linear<T: Float> {
+    input: usize,
+    output: usize,
     weights: Tensor<T>,
     biases: Tensor<T>,
 }
 
-impl<T: Float + NumAssignOps> Module<T> for Linear<T> {
+impl<T: Float + NumAssignOps + Display> Module<T> for Linear<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         assert!(x.dim() >= 2, "Linear::forward(): Expected tensor of dim >= 2, got less");
-        
-        let batch_dims = &x.shape()[0..x.dim()-2];
-        x.matmul(&self.weights.left_broadcast(batch_dims)) + &self.biases.left_broadcast(batch_dims)
+
+        let batch_dims = &x.shape().clone()[0..x.dim()-1];
+        let batch_size = batch_dims.iter().product();
+
+        let new_shape = &[batch_size, self.input];
+        let out_shape = [&batch_dims[..], &[self.output]].concat();
+
+        let mut out = x.reshape(new_shape).matmul(&self.weights) + self.biases.squeeze().stack_new_dim(0, batch_size);
+
+        out = out.reshape(out_shape);
+        out
     }
 
     fn params(&self) -> Vec<Tensor<T>> {
@@ -42,6 +54,8 @@ impl<T: Float + NumAssignOps> Module<T> for Linear<T> {
 impl<T: Float> Linear<T> {
     pub fn zeros(input: usize, output: usize) -> Self {
         Self {
+            input,
+            output,
             weights: Tensor::zeros([input, output]),
             biases: Tensor::zeros([1, output])
         }
@@ -51,6 +65,8 @@ impl<T: Float> Linear<T> {
 impl<T: Float + SampleUniform> Linear<T> {
     pub fn new_uniform<R: SampleRange<T> + Clone>(r: &mut impl Rng, input: usize, output: usize, w_range: R, b_range: R) -> Self {
         Self {
+            input,
+            output,
             weights: Tensor::new_uniform(r, [input, output], w_range).with_grad(),
             biases: Tensor::new_uniform(r, [1, output], b_range).with_grad()
         }
@@ -68,6 +84,8 @@ where
         b_mean: T, b_std: T) -> Self 
     {
         Self {
+            input,
+            output,
             weights: Tensor::new_normal(r, [input, output], w_mean, w_std).with_grad(),
             biases: Tensor::new_normal(r, [1, output], b_mean, b_std).with_grad()
         }
@@ -76,6 +94,8 @@ where
     pub fn new_he(r: &mut impl Rng, input: usize, output: usize) -> Self {
         let w_std = (T::from(2.0).unwrap() / T::from(input).unwrap()).sqrt();
         Self {
+            input,
+            output,
             weights: Tensor::new_normal(r, [input, output], T::zero(), w_std).with_grad(),
             biases: Tensor::zeros([1, output]).with_grad()
         }

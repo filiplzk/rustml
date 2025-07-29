@@ -1,5 +1,5 @@
 use std::time::Instant;
-use rustml::*;
+use rustml::{nn::ReLU, *};
 use rand::seq::SliceRandom;
 use csv::ReaderBuilder;
 
@@ -58,17 +58,17 @@ fn main() {
     
     // network
     let mut net = nn::Sequential::new();
-    net.add(nn::Linear::new_he(&mut rng, 28*28, 64));
+    net.add(nn::Linear::new_he(&mut rng, 28*28, 128));
     net.add(nn::ReLU::new());
     net.add(nn::Linear::new_he(&mut rng, 128, 128));
     net.add(nn::ReLU::new());
     net.add(nn::Linear::new_he(&mut rng, 128, 64));
     net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 8, 10));
+    net.add(nn::Linear::new_he(&mut rng, 64, 10));
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 1e-4, 0.99);
+    let mut optimizer = optim::SGD::new(net.params(), 1e-2, 0.99);
 
     // logging
     let group_size = 100;
