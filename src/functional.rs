@@ -1,5 +1,20 @@
 use crate::*;
 
+
+/// Calculates the mean squared error between 2 tensors
+pub fn mse<T: AnyFloat>(x: &Tensor<T>, y: &Tensor<T>) -> Tensor<T> {
+    let diff = &(x - y);
+    (diff * diff).sum_all() / Tensor::fill([1], T::from(diff.size()).unwrap())
+}
+
+/// Calculates the sigmoid function
+pub fn sigmoid<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
+    let ones = Tensor::ones_like(tensor);
+    let exp_mt = &(-tensor).exp();
+
+    Tensor::ones_like(tensor) / (ones + exp_mt)
+}
+
 /// Performs softmax along the last dimension
 pub fn softmax<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
     let rdim = tensor.shape()[tensor.dim() - 1];
@@ -24,8 +39,3 @@ pub fn cross_entropy_loss<T: AnyFloat>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Ten
     (-pred.log() * tgt).sum([pred.dim()-1])
 }
 
-/// Calculates the mean squared error between 2 tensors
-pub fn mse<T: AnyFloat>(x: &Tensor<T>, y: &Tensor<T>) -> Tensor<T> {
-    let diff = &(x - y);
-    (diff * diff).sum_all() / Tensor::fill([1], T::from(diff.size()).unwrap())
-}

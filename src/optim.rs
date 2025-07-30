@@ -25,6 +25,7 @@ impl<T: AnyFloat> SGD<T> {
         }
     }
 
+    /// Updates the parameters
     pub fn step(&mut self) {
         for (t, g ) in zip(&self.params, &mut self.grads) {
             *g = Tensor::fill_like(t, self.momentum) * &*g + Tensor::fill_like(t, self.lr) * t.grad_tensor();

@@ -188,10 +188,31 @@ impl<T: AnyFloat> Module<T> for ReLU {
     }
 }
 
+/// Sigmoid activation layer
+/// Same as functional::sigmoid but as a module 
+pub struct Sigmoid;
+impl Sigmoid {
+    /// Creates a new ReLU activation layer
+    pub fn new() -> Self { Sigmoid }
+}
+
+impl<T: AnyFloat> Module<T> for Sigmoid {
+    fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
+        functional::sigmoid(x)
+    }
+
+    fn params(&self) -> Vec<Tensor<T>> {
+        vec![]
+    }
+}
+
 /// Softmax layer
 /// Same as functional::softmax but as a module 
 pub struct Softmax;
-impl Softmax { pub fn new() -> Self { Softmax } }
+impl Softmax {
+    /// Creates a new Softmax layer
+    pub fn new() -> Self { Softmax }
+}
 
 impl<T: AnyFloat> Module<T> for Softmax {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
