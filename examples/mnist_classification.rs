@@ -1,6 +1,6 @@
 use std::time::Instant;
 use rustml::*;
-use rand::{seq::SliceRandom, SeedableRng};
+use rand::seq::SliceRandom;
 use csv::ReaderBuilder;
 
 fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> {
@@ -43,8 +43,7 @@ fn from_csv(path: &str, batch_size: usize) -> Vec<(Tensor<f32>, Tensor<usize>)> 
 
 
 fn main() {
-    // let mut rng = rand::rng();
-    let mut rng = rand::rngs::StdRng::seed_from_u64(123457);
+    let mut rng = rand::rng();
     let timer = Instant::now();
     
     // configuration --------
@@ -52,24 +51,24 @@ fn main() {
     // datasets
     let num_train_samples = 60000;
     let num_test_samples = 10000;
-    let train_batch_size = 1;
+    let train_batch_size = 4;
     let train_shuffle = true;
     let test_shuffle = true;
-    let epochs = 10;
+    let epochs = 1;
     
     // network
     let mut net = nn::Sequential::new();
-    net.add(nn::Linear::new_he(&mut rng, 28*28, 8));
-    // net.add(nn::ReLU::new());
-    // net.add(nn::Linear::new_he(&mut rng, 128, 128));
-    // net.add(nn::ReLU::new());
-    // net.add(nn::Linear::new_he(&mut rng, 128, 64));
-    // net.add(nn::ReLU::new());
-    net.add(nn::Linear::new_he(&mut rng, 8, 10));
+    net.add(nn::Linear::new_he(&mut rng, 28*28, 128));
+    net.add(nn::ReLU::new());
+    net.add(nn::Linear::new_he(&mut rng, 128, 128));
+    net.add(nn::ReLU::new());
+    net.add(nn::Linear::new_he(&mut rng, 128, 64));
+    net.add(nn::ReLU::new());
+    net.add(nn::Linear::new_he(&mut rng, 64, 10));
     net.add(nn::Softmax::new());
 
     // optimizer
-    let mut optimizer = optim::SGD::new(net.params(), 2e-3, 0.99);
+    let mut optimizer = optim::SGD::new(net.params(), 1e-4, 0.99);
 
     // logging
     let group_size = 100;
@@ -100,8 +99,9 @@ fn main() {
     for epoch in 1..=epochs {
         for (idx, (data, labels)) in train_dataset.iter().enumerate() {            
             let tgt = labels.stack_new_dim(1, 1).one_hot(10).cast::<f32>();
-            let probs = net.forward(data);
-            
+
+            let probs: Tensor<f32> = net.forward(data);
+
             let batch_losses = functional::cross_entropy_loss(&probs, &tgt);
             let loss = batch_losses.sum_all() / Tensor::fill([1], batch_losses.size() as f32);
             

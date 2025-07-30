@@ -107,13 +107,8 @@ pub struct Sequential<T: AnyFloat> {
 impl<T: AnyFloat> Module<T> for Sequential<T> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
         let mut out = x.clone();
-        println!("\n\nSTART{}", out);
         for layer in &self.layers {
             out = layer.forward(&out);
-            println!("{}", out);
-            if out.flat()[0].is_nan() {
-                panic!();
-            }
         };
         out
     }

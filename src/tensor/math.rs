@@ -26,6 +26,8 @@ impl<T: AnyNumber> Tensor<T> {
 
         let out_shape = [b, &[r1], &[c2]].concat();
         let out = Tensor::zeros(out_shape);
+        let self_flat = self.flat();
+        let rhs_flat = rhs.flat();
         for batch in 0..batch_cnt {
             let b_1_off = batch * r1 * c1;
             let b_2_off = batch * r2 * c2;
@@ -34,9 +36,9 @@ impl<T: AnyNumber> Tensor<T> {
                 for c in 0..c2 {
                     let mut tot = T::zero();
                     for i in 0..c1 {
-                        let v1 = self.flat()[b_1_off + r * c1 + i];
-                        let v2 = rhs.flat()[b_2_off + i * c2 + c];
-                        tot = tot + v1 * v2;
+                        let v1 = self_flat[b_1_off + r * c1 + i];
+                        let v2 = rhs_flat[b_2_off + i * c2 + c];
+                        tot += v1 * v2;
                     }
                     out.flat_mut()[b_out_off + r * c2 + c] = tot;
                 }
@@ -65,6 +67,8 @@ impl<T: AnyNumber> Tensor<T> {
 
         let out_shape = [b, &[r1], &[c2]].concat();
         let out = Tensor::zeros(out_shape);
+        let self_flat = self.flat();
+        let rhs_flat = rhs.flat();
         for batch in 0..batch_cnt {
             let b_1_off = batch * r1 * c1;
             let b_2_off = batch * r2 * c2;
@@ -73,9 +77,9 @@ impl<T: AnyNumber> Tensor<T> {
                 for c in 0..c2 {
                     let mut tot = T::zero();
                     for i in 0..c1 {
-                        let v1 = self.flat()[b_1_off + i * r1 + r];
-                        let v2 = rhs.flat()[b_2_off + i * c2 + c];
-                        tot = tot + v1 * v2;
+                        let v1 = self_flat[b_1_off + i * r1 + r];
+                        let v2 = rhs_flat[b_2_off + i * c2 + c];
+                        tot += v1 * v2;
                     }
                     out.flat_mut()[b_out_off + r * c2 + c] = tot;
                 }
@@ -104,6 +108,8 @@ impl<T: AnyNumber> Tensor<T> {
 
         let out_shape = [b, &[r1], &[c2]].concat();
         let out = Tensor::zeros(out_shape);
+        let self_flat = self.flat();
+        let rhs_flat = rhs.flat();
         for batch in 0..batch_cnt {
             let b_1_off = batch * r1 * c1;
             let b_2_off = batch * r2 * c2;
@@ -112,9 +118,9 @@ impl<T: AnyNumber> Tensor<T> {
                 for c in 0..c2 {
                     let mut tot = T::zero();
                     for i in 0..c1 {
-                        let v1 = self.flat()[b_1_off + r * c1 + i];
-                        let v2 = rhs.flat()[b_2_off + c * r2 + i];
-                        tot = tot + v1 * v2;
+                        let v1 = self_flat[b_1_off + r * c1 + i];
+                        let v2 = rhs_flat[b_2_off + c * r2 + i];
+                        tot += v1 * v2;
                     }
                     out.flat_mut()[b_out_off + r * c2 + c] = tot;
                 }

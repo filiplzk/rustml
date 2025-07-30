@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Range};
+use std::{collections::HashSet, ops::Range, time::Instant};
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 

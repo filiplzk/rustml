@@ -6,8 +6,7 @@ type FT = f64;
 
 fn main() {
     let mut rng = rand::rng();
-    let start: Instant = Instant::now();
-
+    
     // parameters
     let batch_size = 1;
     let range: FT = 1.0;
@@ -25,6 +24,8 @@ fn main() {
             *tgt.get_mut([b, i, i]) = 1.0;
         }
     }
+    
+    let start: Instant = Instant::now();
 
     let inverse = &Tensor::<FT>::fill([batch_size, n, n], 1.0).with_grad();
     let mut loss_sum: FT = 0.0;
