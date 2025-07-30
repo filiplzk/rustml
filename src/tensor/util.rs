@@ -2,7 +2,9 @@ use std::fmt;
 use super::*;
 use num_traits::Num;
 
-pub fn make_string<T: AnyNumber>(tensor: &Tensor<T>, idx: &mut Vec<usize>, layer: usize, val: bool) -> String {
+
+/// Creates a string representation of a tensor
+fn make_string<T: AnyNumber>(tensor: &Tensor<T>, idx: &mut Vec<usize>, layer: usize, val: bool) -> String {
     let next_dim_size = tensor.shape()[idx.len()];
 
     let single = idx.len() == tensor.dim() - 1;

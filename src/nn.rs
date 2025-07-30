@@ -2,6 +2,7 @@ use crate::*;
 use rand::{distr::{uniform::{SampleRange, SampleUniform}, Distribution, StandardUniform}, Rng};
 
 
+/// Trait defining what each module (network) must implement
 pub trait Module<T: AnyFloat> {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T>;
     fn params(&self) -> Vec<Tensor<T>>;
@@ -20,6 +21,8 @@ pub trait Module<T: AnyFloat> {
 }
 
 
+/// Linear layer
+/// Multiplies input with its weights and adds biases
 pub struct Linear<T: AnyFloat> {
     input: usize,
     output: usize,
@@ -49,6 +52,7 @@ impl<T: AnyFloat> Module<T> for Linear<T> {
 }
 
 impl<T: AnyFloat> Linear<T> {
+    /// Constructs a new linear network with all parameters set to 0
     pub fn zeros(input: usize, output: usize) -> Self {
         Self {
             input,
@@ -60,6 +64,7 @@ impl<T: AnyFloat> Linear<T> {
 }
 
 impl<T: AnyFloat + SampleUniform> Linear<T> {
+    /// Constructs a new linear network with weights and biases uniformly sampled from given ranges
     pub fn new_uniform<R: SampleRange<T> + Clone>(r: &mut impl Rng, input: usize, output: usize, w_range: R, b_range: R) -> Self {
         Self {
             input,
@@ -74,6 +79,7 @@ impl<T: AnyFloat> Linear<T>
 where
     StandardUniform: Distribution<T>
 {
+    /// Constructs a new linear network with weights and biases sampled from a given normal distribution
     pub fn new_normal(
         r: &mut impl Rng,
         input: usize, output: usize,
@@ -88,6 +94,7 @@ where
         }
     }
 
+    /// Constructs a new linear network using Kaiming He initialisation
     pub fn new_he(r: &mut impl Rng, input: usize, output: usize) -> Self {
         let w_std = (T::from(2.0).unwrap() / T::from(input).unwrap()).sqrt();
         Self {
@@ -100,6 +107,8 @@ where
 }
 
 
+/// Sequential layer
+/// Holds a sequence of other layers
 pub struct Sequential<T: AnyFloat> {
     pub layers: Vec<Box<dyn Module<T>>>
 }
@@ -126,18 +135,25 @@ impl<T: AnyFloat> Module<T> for Sequential<T> {
 }
 
 impl<T: AnyFloat> Sequential<T> {
+    /// Creates a new sequential layer
     pub fn new() -> Self {
         Self { layers: vec![] }
     }
 
+    /// Adds a new layer at the end of the sequence
     pub fn add<M: Module<T> + 'static>(&mut self, layer: M) {
         self.layers.push(Box::new(layer));
     }
 }
 
 
+/// Tanh activation layer
 pub struct Tanh;
-impl Tanh { pub fn new() -> Self { Tanh } }
+
+impl Tanh { 
+    /// Creates a new tanh activation layer
+    pub fn new() -> Self { Tanh }
+}
 
 impl<T: AnyFloat> Module<T> for Tanh {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
@@ -154,9 +170,13 @@ impl<T: AnyFloat> Module<T> for Tanh {
     }
 }
 
-
+/// ReLU activation layer
 pub struct ReLU;
-impl ReLU { pub fn new() -> Self { ReLU } }
+
+impl ReLU {
+    /// Creates a new ReLU activation layer
+    pub fn new() -> Self { ReLU }
+}
 
 impl<T: AnyFloat> Module<T> for ReLU {
     fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
@@ -168,6 +188,8 @@ impl<T: AnyFloat> Module<T> for ReLU {
     }
 }
 
+/// Softmax layer
+/// Same as functional::softmax but as a module 
 pub struct Softmax;
 impl Softmax { pub fn new() -> Self { Softmax } }
 

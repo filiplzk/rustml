@@ -1,5 +1,6 @@
 use crate::*;
 
+/// Performs softmax along the last dimension
 pub fn softmax<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
     let rdim = tensor.shape()[tensor.dim() - 1];
     
@@ -11,6 +12,8 @@ pub fn softmax<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
     exp / exp_sum
 }
 
+/// Calculates the cross-entropy loss of 2 tensors
+/// The tensors should hold probabilities, so every value must belong to the interval [0, 1]
 pub fn cross_entropy_loss<T: AnyFloat>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Tensor<T> {
     assert!(pred.dim() >= 2, "cross_entropy_loss(): Expected a Tensor of dim >=2");
     assert!(*pred.shape() == *tgt.shape(), "cross_entropy_loss(): Got Tensors with different shapes");
@@ -21,6 +24,7 @@ pub fn cross_entropy_loss<T: AnyFloat>(pred: &Tensor<T>, tgt: &Tensor<T>) -> Ten
     (-pred.log() * tgt).sum([pred.dim()-1])
 }
 
+/// Calculates the mean squared error between 2 tensors
 pub fn mse<T: AnyFloat>(x: &Tensor<T>, y: &Tensor<T>) -> Tensor<T> {
     let diff = &(x - y);
     (diff * diff).sum_all() / Tensor::fill([1], T::from(diff.size()).unwrap())

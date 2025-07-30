@@ -3,6 +3,7 @@ use std::ops::{Add, Sub, Mul, Div};
 use num_traits::{Float, Num, NumAssignOps, NumCast, NumOps};
 use rand::distr::uniform::SampleUniform;
 
+/// Trait unifying all numeric types, including floating point numbers
 pub trait AnyNumber:
     Num
     + NumCast
@@ -30,6 +31,7 @@ impl AnyNumber for f32 {}
 impl AnyNumber for f64 {}
 
 
+/// Trait unifying all floating point numbers
 pub trait AnyFloat:
     AnyNumber
     + Float

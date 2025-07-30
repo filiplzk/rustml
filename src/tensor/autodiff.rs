@@ -2,6 +2,8 @@ use std::{collections::HashSet, ops::Range, time::Instant};
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
+/// An object containing all information on how the tensor was created
+/// Connects "tensor nodes" in a "computation graph" and makes the gradient flow during backpropagation
 #[derive(Clone)]
 pub(super) enum Children<T: AnyNumber> {
     None,
@@ -31,6 +33,7 @@ pub(super) enum Children<T: AnyNumber> {
 }
 
 impl<T: AnyFloat> Children<T> {
+    /// Returns a vector of child tensors
     fn children_vec(&self) -> Vec<Tensor<T>> {
         match &self {
             Children::None => {
@@ -66,6 +69,7 @@ impl<T: AnyFloat> Children<T> {
         }
     }
 
+    /// Calculates gradients of the children using the chain rule
     fn update_grads(&self, parent: &Tensor<T>, cur_grad: &Tensor<T>) {
         let mut tensors = vec![];
         let mut grads = vec![];
@@ -313,6 +317,7 @@ impl<T: AnyFloat> Children<T> {
 }
 
 impl<T: AnyFloat> Tensor<T> {
+    /// Returns a reverse topological ordering of the computational graph
     fn rev_toposort(&self, vec: &mut Vec<Tensor<T>>, seen: &mut HashSet<usize>) {
         seen.insert(self.id());
         
@@ -327,6 +332,7 @@ impl<T: AnyFloat> Tensor<T> {
         }
     }
 
+    /// Returns a topological ordering of the computational graph
     fn toposort(&self) -> Vec<Tensor<T>> {
         let mut topo = Vec::new();
         self.rev_toposort(&mut topo, &mut HashSet::new());
@@ -334,6 +340,7 @@ impl<T: AnyFloat> Tensor<T> {
         topo
     }
 
+    /// Performs a backpropagation algorithm from a unit tensor
     pub fn backward(&self) {
         assert!(self.size() == 1, "Can't backpropagate on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't backpropagate on a tensor with disabled gradients");
@@ -346,6 +353,8 @@ impl<T: AnyFloat> Tensor<T> {
         }
     }
 
+    /// Zeroes out all gradients from the computational graph starting from the given tensor
+    /// Should be called after each backprogation, otherwise gradients will accumulate
     pub fn zero_grad(&self) {
         assert!(self.size() == 1, "Can't reset on a tensor holding more than 1 value");
         assert!(self.grad_enabled(), "Can't reset on a tensor with disabled gradients");

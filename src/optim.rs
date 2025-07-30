@@ -2,6 +2,7 @@ use std::iter::zip;
 use crate::*;
 
 
+/// Stochastic gradient descent optimiser
 pub struct SGD<T: AnyFloat> {
     params: Vec<Tensor<T>>,
     grads: Vec<Tensor<T>>,
@@ -10,6 +11,7 @@ pub struct SGD<T: AnyFloat> {
 }
 
 impl<T: AnyFloat> SGD<T> {
+    /// Creates a new SGD optimiser with given parameters
     pub fn new(params: Vec<Tensor<T>>, lr: T, momentum: T) -> Self {
         let grads: Vec<Tensor<T>> = params.iter()
             .map(|t| Tensor::zeros_like(t))

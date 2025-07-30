@@ -1,12 +1,10 @@
 use plotters::prelude::*;
 
-/// Plots a vector of (x, y) points and saves it as a PNG (made by chatGPT)
+/// Plots a vector of (x, y) points and saves it as a PNG
 pub fn plot_data(filename: &str, title: &str, data: &[(f32, f32)]) -> Result<(), Box<dyn std::error::Error>> {
-    // Create drawing area
     let root = BitMapBackend::new(filename, (800, 600)).into_drawing_area();
     root.fill(&WHITE)?;
 
-    // Determine axis bounds
     let (x_min, x_max) = data.iter().fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), &(x, _)| {
         (min.min(x), max.max(x))
     });
@@ -14,7 +12,6 @@ pub fn plot_data(filename: &str, title: &str, data: &[(f32, f32)]) -> Result<(),
         (min.min(y), max.max(y))
     });
 
-    // Build chart
     let mut chart = ChartBuilder::on(&root)
         .caption(title, ("sans-serif", 30))
         .margin(20)
@@ -24,7 +21,6 @@ pub fn plot_data(filename: &str, title: &str, data: &[(f32, f32)]) -> Result<(),
 
     chart.configure_mesh().draw()?;
 
-    // Draw the line
     chart.draw_series(LineSeries::new(data.to_vec(), &RED))?;
 
     Ok(())

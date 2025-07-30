@@ -4,12 +4,16 @@ use num_traits::{Float, Num, NumAssignOps};
 
 
 impl<T: AnyNumber> Tensor<T> {
+    /// Returns a duplicate of a tensor
+    /// For a shallow copy, use tensor.clone()
     pub fn duplicate(&self) -> Tensor<T> {
         let data = self.flat().clone();
         let children = Children::Id(self.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
     }
 
+    /// Performs matrix multiplication: itself wuth a given tensor
+    /// The operation is done independently along all batch dimensions
     pub fn matmul(&self, rhs: &Tensor<T>) -> Tensor<T> {
         assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
         
@@ -51,6 +55,8 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Performs matrix multiplication: itself transposed wuth a given tensor
+    /// The operation is done independently along all batch dimensions
     pub fn matmul_at(&self, rhs: &Tensor<T>) -> Tensor<T> {
         assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
         
@@ -92,6 +98,8 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Performs matrix multiplication: itself wuth a given tensor transposed
+    /// The operation is done independently along all batch dimensions
     pub fn matmul_bt(&self, rhs: &Tensor<T>) -> Tensor<T> {
         assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
         
@@ -133,6 +141,7 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a new tensor that is a sum along a given dimension
     fn sum_1dim(&self, dim: usize) -> Tensor<T> {
         let mut new_shape = self.shape().clone();
         new_shape.remove(dim);
@@ -156,6 +165,7 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a new tensor that is a sum along given dimensions
     pub fn sum<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
         let mut dims = dims.as_ref().to_vec();
         dims.reverse();
@@ -167,11 +177,13 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a unit tensor that is a sum of all values
     pub fn sum_all(&self) -> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).sum(dims).squeeze()
     }
 
+    /// Returns a new tensor that is a product along a given dimension
     fn prod_1dim(&self, dim: usize) -> Tensor<T> {
         let mut new_shape = self.shape().clone();
         new_shape.remove(dim);
@@ -195,6 +207,7 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a new tensor that is a product along given dimensions
     pub fn prod<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
         let mut dims = dims.as_ref().to_vec();
         dims.reverse();
@@ -206,11 +219,13 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a unit tensor that is a product of all values
     pub fn prod_all(&self) -> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).prod(dims).squeeze()
     }
 
+    /// Returns a new tensor that is a minimum along a given dimension
     fn min_1dim(&self, dim: usize) -> Tensor<T> {
         let out = self.slice_1dim(dim, 0..1).squeeze_at(dim);
     
@@ -233,6 +248,7 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a new tensor that is a minimum along given dimensions
     pub fn min<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
         let mut dims = dims.as_ref().to_vec();
         dims.reverse();
@@ -244,11 +260,13 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a unit tensor that is a minimum of all values
     pub fn min_all(&self) -> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).min(dims).squeeze()
     }
 
+    /// Returns a new tensor that is a maximum along a given dimension
     fn max_1dim(&self, dim: usize) -> Tensor<T> {
         let out = self.slice_1dim(dim, 0..1).squeeze_at(dim);
     
@@ -271,6 +289,7 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a new tensor that is a maximum along given dimensions
     pub fn max<S: AsRef<[usize]>>(&self, dims: S) -> Tensor<T> {
         let mut dims = dims.as_ref().to_vec();
         dims.reverse();
@@ -282,11 +301,13 @@ impl<T: AnyNumber> Tensor<T> {
         out
     }
 
+    /// Returns a unit tensor that is a maximum of all values
     pub fn max_all(&self) -> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).max(dims).squeeze()
     }
 
+    /// Returns a new tensor that is a element-wise minimum with another tensor
     pub fn min_with(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
@@ -297,6 +318,7 @@ impl<T: AnyNumber> Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 
+    /// Returns a new tensor that is a element-wise maximum with another tensor
     pub fn max_with(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
