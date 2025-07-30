@@ -116,7 +116,7 @@ impl<T: AnyNumber> Tensor<T> {
 }
 
 
-impl<T: AnyNumber> Tensor<T> {
+impl<T: AnyFloat> Tensor<T> {
     pub fn with_grad(&self) -> Self {
         {
             let mut tensor: RefMut<'_, TensorCore<T>> = self.handle_mut();

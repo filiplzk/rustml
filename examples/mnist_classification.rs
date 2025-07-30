@@ -142,7 +142,7 @@ fn main() {
 
     let total_time_s = timer.elapsed().as_millis() as f32 / 1000.0;
 
-    plotting::plot_data("_loss.png", "Loss over time", &loss_history).expect("Error while creating a loss plot");
+    plotting::plot_data("examples/_class_loss.png", "Loss over time", &loss_history).expect("Error while creating a loss plot");
     println!("Accuracy: {:.2}% ({}/{})", correct as f32 / num_test_samples as f32 * 100.0, correct as f32, num_test_samples as f32);
     println!("Execution time: {total_time_s:.2}s")
 }

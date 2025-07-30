@@ -127,7 +127,6 @@ impl<T: AnyNumber> Tensor<T> {
 
 
 
-
 impl Tensor<usize> {
     pub fn one_hot(&self, dim_size: usize) -> Tensor<usize> {
         let mut new_shape = self.shape().clone();

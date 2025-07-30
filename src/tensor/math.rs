@@ -9,9 +9,7 @@ impl<T: AnyNumber> Tensor<T> {
         let children = Children::Id(self.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled(), children)
     }
-}
 
-impl<T: AnyNumber> Tensor<T> {
     pub fn matmul(&self, rhs: &Tensor<T>) -> Tensor<T> {
         assert!(self.dim() >= 2 && rhs.dim() >= 2, "Matmul can be done on tensors with dim >= 2");
         
@@ -288,9 +286,7 @@ impl<T: AnyNumber> Tensor<T> {
         let dims: Vec<usize> = (1..=self.dim()).collect();
         self.unsqueeze(0).max(dims).squeeze()
     }
-}
 
-impl<T: AnyNumber> Tensor<T> {
     pub fn min_with(&self, rhs: &Tensor<T>) -> Tensor<T> {
         let data = self.flat()
             .iter()
@@ -311,6 +307,7 @@ impl<T: AnyNumber> Tensor<T> {
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
 }
+
 
 impl<T: AnyNumber> Neg for &Tensor<T> {
     type Output = Tensor<T>;
