@@ -23,7 +23,7 @@ impl<T: AnyNumber> Tensor<T> {
     }
 
     /// Constructs a tensor with given shape and flat data, additionally with given children if some condition is met
-    pub(super) fn from_op(shape: Vec<usize>, data: Vec<T>, grad_criterion: bool, maybe_children: Children<T>) -> Self {
+    pub(crate) fn from_op(shape: Vec<usize>, data: Vec<T>, grad_criterion: bool, maybe_children: Children<T>) -> Self {
         let len = data.len();
         let tensor = TensorCore {
             shape,

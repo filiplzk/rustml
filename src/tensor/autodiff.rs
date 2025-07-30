@@ -1,17 +1,20 @@
 use std::{collections::HashSet, ops::Range, time::Instant};
+use crate::functional;
+
 use super::*;
 use num_traits::{Float, Num, NumAssignOps};
 
 /// An object containing all information on how the tensor was created
 /// Connects "tensor nodes" in a "computation graph" and makes the gradient flow during backpropagation
 #[derive(Clone)]
-pub(super) enum Children<T: AnyNumber> {
+pub(crate) enum Children<T: AnyNumber> {
     None,
     
     Id(Tensor<T>),
     Neg(Tensor<T>),
     Exp(Tensor<T>),
     Log(Tensor<T>),
+    Sigmoid(Tensor<T>),
     DimSum(Tensor<T>, usize),
     DimProd(Tensor<T>, usize),
     DimMin(Tensor<T>, usize),
@@ -44,6 +47,7 @@ impl<T: AnyFloat> Children<T> {
             Children::Neg(x) |
             Children::Exp(x) |
             Children::Log(x) |
+            Children::Sigmoid(x) |
             Children::DimSum(x, _) |
             Children::DimProd(x, _) |
             Children::DimMin(x, _) |
@@ -98,6 +102,12 @@ impl<T: AnyFloat> Children<T> {
                 if t.grad_enabled() {
                     tensors.push(t);
                     grads.push(Tensor::ones_like(t) / t * cur_grad);
+                }
+            }
+            Children::Sigmoid(t) => {
+                if t.grad_enabled() {
+                    tensors.push(t);
+                    grads.push(functional::sigmoid(t) * functional::sigmoid(&(Tensor::ones_like(t) - t)) * cur_grad);
                 }
             }
             Children::DimSum(t, dim) => {

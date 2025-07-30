@@ -8,11 +8,19 @@ pub fn mse<T: AnyFloat>(x: &Tensor<T>, y: &Tensor<T>) -> Tensor<T> {
 }
 
 /// Calculates the sigmoid function
-pub fn sigmoid<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {
-    let ones = Tensor::ones_like(tensor);
-    let exp_mt = &(-tensor).exp();
+pub fn sigmoid<T: AnyFloat>(tensor: &Tensor<T>) -> Tensor<T> {    
+    let data = tensor.flat()
+    .iter()
+    .map(|&x| {
+        if x > T::zero() {
+            T::one() / (T::one() + (-x).exp())
+        } else {
+            let x_exp = x.exp();
+            x_exp / (T::one() + x_exp)
+        }
+    }).collect();
 
-    Tensor::ones_like(tensor) / (ones + exp_mt)
+    Tensor::from_op(tensor.shape().clone(), data, tensor.grad_enabled(), Children::Sigmoid(tensor.clone()))
 }
 
 /// Performs softmax along the last dimension
