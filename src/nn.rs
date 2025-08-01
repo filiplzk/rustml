@@ -188,6 +188,28 @@ impl<T: AnyFloat> Module<T> for ReLU {
     }
 }
 
+
+/// LeakyReLU activation layer
+pub struct LeakyReLU<T: AnyFloat> {
+    alpha: T
+}
+
+impl<T: AnyFloat> LeakyReLU<T> {
+    /// Creates a new LeakyReLU activation layer with a given alpha parameter
+    pub fn new(alpha: T) -> Self { LeakyReLU { alpha } }
+}
+
+impl<T: AnyFloat> Module<T> for LeakyReLU<T> {
+    fn forward(&self, x: &Tensor<T>) -> Tensor<T> {
+        let alpha_t = &Tensor::fill_like(x, self.alpha);
+        alpha_t * x + x.ge(&Tensor::zeros_like(x)) * ( Tensor::ones_like(x) - alpha_t ) * x
+    }
+
+    fn params(&self) -> Vec<Tensor<T>> {
+        vec![]
+    }
+}
+
 /// Sigmoid activation layer
 /// Same as functional::sigmoid but as a module 
 pub struct Sigmoid;

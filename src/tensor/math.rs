@@ -328,6 +328,56 @@ impl<T: AnyNumber> Tensor<T> {
         let children = Children::Max(self.clone(), rhs.clone());
         Tensor::from_op(self.shape().clone(), data, self.grad_enabled() || rhs.grad_enabled(), children)
     }
+
+    /// Returns a mask tensor which is a result of pointwise "equal"
+    pub fn eq(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data: Vec<T> = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| if x == y { T::one() } else { T::zero() } )
+            .collect();
+        Tensor::from_flat_like(self, data)
+    }
+
+    /// Returns a mask tensor which is a result of pointwise "greater than"
+    pub fn gt(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data: Vec<T> = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| if x > y { T::one() } else { T::zero() } )
+            .collect();
+        Tensor::from_flat_like(self, data)
+    }
+
+    /// Returns a mask tensor which is a result of pointwise "greater or equal"
+    pub fn ge(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data: Vec<T> = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| if x >= y { T::one() } else { T::zero() } )
+            .collect();
+        Tensor::from_flat_like(self, data)
+    }
+    
+    /// Returns a mask tensor which is a result of pointwise "less than"
+    pub fn lt(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data: Vec<T> = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| if x < y { T::one() } else { T::zero() } )
+            .collect();
+        Tensor::from_flat_like(self, data)
+    }
+
+    /// Returns a mask tensor which is a result of pointwise "less or equal"
+    pub fn le(&self, rhs: &Tensor<T>) -> Tensor<T> {
+        let data: Vec<T> = self.flat()
+            .iter()
+            .zip(rhs.flat().iter())
+            .map(|(&x, &y)| if x <= y { T::one() } else { T::zero() } )
+            .collect();
+        Tensor::from_flat_like(self, data)
+    }
 }
 
 
